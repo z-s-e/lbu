@@ -91,7 +91,7 @@ namespace detail {
         uint32_t bufferSize = 0;
 
         enum StatusFlags {
-            StatusBufferReady = 1<<0,       ///< current buffer is not empty and contains the next data
+            StatusBufferReady = 1<<0,       ///< current_buffer is ready for read resp. write
             StatusError = 1<<1,             ///< read error
             StatusEndOfStream = 1<<2        ///< at end
         };

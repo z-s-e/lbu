@@ -159,7 +159,7 @@ namespace lbu {
         if( s <= SmallResered ) {
             set_small(data.data(), s);
         } else {
-            set_ext(xmalloc_copy(data.array_static_cast<char>()).data(), s, s);
+            set_ext(xmalloc_copy(data.array_static_cast<char>()), s, s);
         }
     }
 
@@ -281,7 +281,7 @@ namespace lbu {
             set_size_checked(newSize);
         } else {
             const auto newCapacity = grow_capacity(newSize);
-            char* newData = xmalloc<char>(newCapacity).data();
+            char* newData = xmalloc<char>(newCapacity);
             char* newC = newData + index;
             std::memcpy(newData, c, index);
             std::memcpy(newC + count, c + index,  oldSize - index);
@@ -446,12 +446,12 @@ namespace lbu {
             set_small(r.data(), r.size());
             ::free(r.data());
         } else if( is_small() ) {
-            char* c = xmalloc<char>(capacity).data();
+            char* c = xmalloc<char>(capacity);
             std::memcpy(c, r.data(), r.size());
             // memcpy must happen first
             set_ext(c, r.size(), capacity);
         } else {
-            set_ext(xrealloc<char>(d.ext.data, capacity).data(), r.size(), capacity);
+            set_ext(xrealloc<char>(d.ext.data, capacity), r.size(), capacity);
         }
     }
 
@@ -466,10 +466,10 @@ namespace lbu {
             char* newC;
 
             if( is_small() ) {
-                newC = xmalloc<char>(newCapacity).data();
+                newC = xmalloc<char>(newCapacity);
                 std::memcpy(newC, c, oldSize);
             } else {
-                newC = xrealloc<char>(c, newCapacity).data();
+                newC = xrealloc<char>(c, newCapacity);
             }
             set_ext(newC, newSize, newCapacity);
             c = newC;

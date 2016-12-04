@@ -287,8 +287,8 @@ void fd_output_stream::reset_buffer()
 
 
 socket_stream_pair::socket_stream_pair(uint32_t bufsize)
-    : in(xmalloc<char>(bufsize))
-    , out(xmalloc<char>(bufsize))
+    : in(array_ref<char>(xmalloc<char>(bufsize), bufsize))
+    , out(array_ref<char>(xmalloc<char>(bufsize), bufsize))
 {
 }
 
@@ -311,7 +311,7 @@ void socket_stream_pair::reset(fd::unique_fd filedes, FdBlockingState b)
 
 
 managed_fd_output_stream::managed_fd_output_stream(uint32_t bufsize)
-    : out(xmalloc<char>(bufsize))
+    : out(array_ref<char>(xmalloc<char>(bufsize), bufsize))
 {
 }
 
@@ -331,7 +331,7 @@ void managed_fd_output_stream::reset(fd::unique_fd filedes, FdBlockingState b)
 
 
 managed_fd_input_stream::managed_fd_input_stream(uint32_t bufsize)
-    : in(xmalloc<char>(bufsize))
+    : in(array_ref<char>(xmalloc<char>(bufsize), bufsize))
 {
 }
 

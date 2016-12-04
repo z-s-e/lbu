@@ -31,7 +31,7 @@
 namespace lbu {
 
     template< typename T >
-    array_ref<T> xmalloc(size_t count)
+    T* xmalloc(size_t count)
     {
         static_assert(std::is_pod<T>::value, "only POD supported");
         if( count == 0 )
@@ -40,11 +40,11 @@ namespace lbu {
         void* p = ::malloc(sizeof(T) * count);
         if( p == nullptr )
             throw std::bad_alloc();
-        return {static_cast<T*>(p), count};
+        return static_cast<T*>(p);
     }
 
     template< typename T >
-    array_ref<T> xcalloc(size_t count)
+    T* xcalloc(size_t count)
     {
         static_assert(std::is_pod<T>::value, "only POD supported");
         if( count == 0 )
@@ -53,24 +53,24 @@ namespace lbu {
         void* p = ::calloc(count, sizeof(T));
         if( p == nullptr )
             throw std::bad_alloc();
-        return {static_cast<T*>(p), count};
+        return static_cast<T*>(p);
     }
 
     template< typename T >
-    array_ref<T> xrealloc(void* p, size_t count)
+    T* xrealloc(T* p, size_t count)
     {
         static_assert(std::is_pod<T>::value, "only POD supported");
         assert(count <= (std::numeric_limits<size_t>::max() / (2 * sizeof(T))));
-        p = ::realloc(p, sizeof(T) * count);
+        p = static_cast<T*>(::realloc(p, sizeof(T) * count));
         if( count == 0 )
             return {};
         if( p == nullptr )
             throw std::bad_alloc();
-        return {static_cast<T*>(p), count};
+        return p;
     }
 
     template< typename T >
-    array_ref<T> xmalloc_aligned(size_t alignment, size_t count)
+    T* xmalloc_aligned(size_t alignment, size_t count)
     {
         static_assert(std::is_pod<T>::value, "only POD supported");
         assert(alignment >= sizeof(void*));
@@ -84,14 +84,14 @@ namespace lbu {
                 assert(false); // alignment was not a power of two
             throw std::bad_alloc();
         }
-        return {static_cast<T*>(p), count};
+        return static_cast<T*>(p);
     }
 
     template< typename T >
-    array_ref<T> xmalloc_copy(array_ref<const T> data)
+    T* xmalloc_copy(array_ref<const T> data)
     {
         auto a = xmalloc<T>(data.size());
-        std::memcpy(a.data(), data.data(), data.byte_size());
+        std::memcpy(a, data.data(), data.byte_size());
         return a;
     }
 

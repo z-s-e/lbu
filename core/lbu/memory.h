@@ -27,7 +27,7 @@
 namespace lbu {
 
     template< typename T, typename U >
-    U value_reinterpret_cast(T value)
+    U value_reinterpret_cast(const T& value)
     {
         static_assert(sizeof(T) == sizeof(U), "size mismatch");
         static_assert(std::is_pod<T>::value && std::is_pod<U>::value, "only POD supported");
@@ -55,11 +55,11 @@ namespace lbu {
     };
 
     template< typename T, void(*CleanupFunction)(T*) >
-    using unique_ptr_c = std::unique_ptr< T, static_cleanup_function<T*, CleanupFunction > >;
+    using unique_ptr_c = std::unique_ptr<T, static_cleanup_function<T*, CleanupFunction> >;
 
     using unique_ptr_raw = unique_ptr_c<void, ::free>;
 
-    using unique_cstr = std::unique_ptr< char, static_cleanup_function<void*, ::free > >;
+    using unique_cstr = std::unique_ptr<char, static_cleanup_function<void*, ::free> >;
 
 } // namespace lbu
 

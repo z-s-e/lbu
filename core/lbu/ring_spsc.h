@@ -228,6 +228,8 @@ namespace algorithm {
             array_ref<T> continuous_range();
             std::pair<array_ref<T>, array_ref<T>> ranges();
 
+            array_ref<T, SizeType> buffer() const { return d.buffer; }
+
             producer(const producer&) = delete;
             producer& operator=(const producer&) = delete;
 
@@ -252,6 +254,8 @@ namespace algorithm {
             SizeType last_available() const;
             array_ref<T> continuous_range();
             std::pair<array_ref<T>, array_ref<T>> ranges();
+
+            array_ref<T, SizeType> buffer() const { return d.buffer; }
 
             consumer(const consumer&) = delete;
             consumer& operator=(const consumer&) = delete;

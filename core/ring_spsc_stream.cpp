@@ -19,6 +19,7 @@
 
 #include "lbu/ring_spsc_stream.h"
 
+#include "lbu/align.h"
 #include "lbu/eventfd.h"
 #include "lbu/poll.h"
 #include "lbu/ring_spsc.h"
@@ -345,22 +346,23 @@ bool ring_spsc_shared_data::open_event_fd(int* event_fd)
 
 
 struct ring_spsc_basic_controller::internal {
-    static const int Alignment = 64;
-
     ring_spsc_shared_data shared;
     uint32_t bufsize;
     int fd = -1;
-    char padding[Alignment - sizeof(shared) - sizeof(bufsize) - sizeof(fd)];
+    char* buf;
 };
 
 ring_spsc_basic_controller::ring_spsc_basic_controller(uint32_t bufsize)
 {
-    auto s = std::min(std::max(bufsize, 1u), (uint32_t(1) << 31) - 1);
-    char* p = xmalloc_aligned<char>(internal::Alignment, sizeof(internal) + s).data();
+    const auto align = size_t(std::max<long>(sysconf(_SC_LEVEL1_DCACHE_LINESIZE), alignof(internal)));
+    const auto padded = align_up(sizeof(internal), align);
+    const auto s = std::min(std::max(bufsize, 1u), (uint32_t(1) << 31) - 1);
+    char* p = xmalloc_aligned<char>(align, padded + s);
     d = reinterpret_cast<internal*>(p);
 
     new (d) internal;
     d->bufsize = s;
+    d->buf = p + padded;
 
     ring_spsc_shared_data::open_event_fd(&(d->fd));
 }
@@ -382,7 +384,7 @@ bool ring_spsc_basic_controller::pair_streams(ring_spsc::output_stream *out,
     if( d->fd < 0 )
         return false;
 
-    auto buf = array_ref<char>(reinterpret_cast<char*>(d) + sizeof(internal), d->bufsize);
+    auto buf = array_ref<char>(d->buf, d->bufsize);
     ring_spsc::pair_streams(out, in, buf, d->fd, &(d->shared), buffer_limit);
     return true;
 }

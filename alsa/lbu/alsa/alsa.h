@@ -124,7 +124,11 @@ namespace alsa {
         int16_t channels() const { return m_channels; }
         int32_t rate() const { return m_rate; }
 
-        static int bytes_for_type(snd_pcm_format_t type);
+        int frame_native_byte_size() const { return native_byte_size(type()) * channels(); }
+        int frame_packed_byte_size() const { return packed_byte_size(type()) * channels(); }
+
+        static int native_byte_size(snd_pcm_format_t type);
+        static int packed_byte_size(snd_pcm_format_t type);
 
     private:
         int16_t m_type = SND_PCM_FORMAT_UNKNOWN;
@@ -146,6 +150,9 @@ namespace alsa {
 
         bool is_interleaved() const;
         bool is_noninterleaved() const;
+
+        int period_native_byte_size() const { return format().frame_native_byte_size() * int(frames_per_period()); }
+        int period_packed_byte_size() const { return format().frame_packed_byte_size() * int(frames_per_period()); }
 
     private:
         snd_pcm_access_t m_access;
@@ -362,7 +369,50 @@ namespace alsa {
         return *this;
     }
 
-    inline int pcm_format::bytes_for_type(snd_pcm_format_t type)
+    inline int pcm_format::native_byte_size(snd_pcm_format_t type)
+    {
+        switch( type ) {
+        case SND_PCM_FORMAT_S8:
+        case SND_PCM_FORMAT_U8:
+            return 1;
+        case SND_PCM_FORMAT_S16_LE:
+        case SND_PCM_FORMAT_S16_BE:
+        case SND_PCM_FORMAT_U16_LE:
+        case SND_PCM_FORMAT_U16_BE:
+            return 2;
+        case SND_PCM_FORMAT_S24_LE:
+        case SND_PCM_FORMAT_S24_BE:
+        case SND_PCM_FORMAT_U24_LE:
+        case SND_PCM_FORMAT_U24_BE:
+        case SND_PCM_FORMAT_S32_LE:
+        case SND_PCM_FORMAT_S32_BE:
+        case SND_PCM_FORMAT_U32_LE:
+        case SND_PCM_FORMAT_U32_BE:
+        case SND_PCM_FORMAT_FLOAT_LE:
+        case SND_PCM_FORMAT_FLOAT_BE:
+        case SND_PCM_FORMAT_S24_3LE:
+        case SND_PCM_FORMAT_S24_3BE:
+        case SND_PCM_FORMAT_U24_3LE:
+        case SND_PCM_FORMAT_U24_3BE:
+        case SND_PCM_FORMAT_S20_3LE:
+        case SND_PCM_FORMAT_S20_3BE:
+        case SND_PCM_FORMAT_U20_3LE:
+        case SND_PCM_FORMAT_U20_3BE:
+        case SND_PCM_FORMAT_S18_3LE:
+        case SND_PCM_FORMAT_S18_3BE:
+        case SND_PCM_FORMAT_U18_3LE:
+        case SND_PCM_FORMAT_U18_3BE:
+            return 4;
+        case SND_PCM_FORMAT_FLOAT64_LE:
+        case SND_PCM_FORMAT_FLOAT64_BE:
+            return 8;
+        default:
+            assert(false);
+            return 0;
+        }
+    }
+
+    inline int pcm_format::packed_byte_size(snd_pcm_format_t type)
     {
         switch( type ) {
         case SND_PCM_FORMAT_S8:
@@ -461,18 +511,21 @@ namespace alsa {
     inline int32_t pcm_buffer::channel_iter::read_i32(snd_pcm_format_t type) const
     {
         switch( type ) {
+        case SND_PCM_FORMAT_S16_BE:
+        case SND_PCM_FORMAT_S16_LE:
+            return read_i16(type);
         case SND_PCM_FORMAT_S24_LE:
         case SND_PCM_FORMAT_S24_3LE:
             return from_little_endian_s24_packed(d);
         case SND_PCM_FORMAT_S20_3LE: {
             auto v = from_little_endian_u24_packed(d);
-            if( v >= (uint32_t(1) << 19))
+            if( v >= (uint32_t(1) << 19) )
                 v |= uint32_t(0xfff) << 20;
             return value_reinterpret_cast<uint32_t, int32_t>(v);
         }
         case SND_PCM_FORMAT_S18_3LE: {
             auto v = from_little_endian_u24_packed(d);
-            if( v >= (uint32_t(1) << 17))
+            if( v >= (uint32_t(1) << 17) )
                 v |= uint32_t(0xfffc) << 16;
             return value_reinterpret_cast<uint32_t, int32_t>(v);
         }
@@ -482,13 +535,13 @@ namespace alsa {
             return from_big_endian_s24_packed(d);
         case SND_PCM_FORMAT_S20_3BE: {
             auto v = from_big_endian_u24_packed(d);
-            if( v >= (uint32_t(1) << 19))
+            if( v >= (uint32_t(1) << 19) )
                 v |= uint32_t(0xfff) << 20;
             return value_reinterpret_cast<uint32_t, int32_t>(v);
         }
         case SND_PCM_FORMAT_S18_3BE: {
             auto v = from_big_endian_u24_packed(d);
-            if( v >= (uint32_t(1) << 17))
+            if( v >= (uint32_t(1) << 17) )
                 v |= uint32_t(0xfffc) << 16;
             return value_reinterpret_cast<uint32_t, int32_t>(v);
         }
