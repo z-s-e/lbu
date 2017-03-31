@@ -22,6 +22,8 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnoexcept -Wstrict-null-sentinel -Wlogical-op")
 endif()
 
+option(LBU_BUILD_STATIC "Build lbu as a static library" OFF)
+
 
 # --- TARGETS
 
@@ -71,7 +73,15 @@ set(lbu_core_hdr
     core/lbu/xmalloc.h
 )
 
-add_library(lbu_core SHARED ${lbu_core_src})
+if(LBU_BUILD_STATIC)
+    add_library(lbu_core STATIC ${lbu_core_src})
+else()
+    add_library(lbu_core SHARED ${lbu_core_src})
+    set_target_properties(lbu_core PROPERTIES
+                          SOVERSION ${LIBLBU_VERSION_MAJOR}
+                          VERSION ${LIBLBU_VERSION})
+endif()
+
 add_custom_target(lbu_core_header SOURCES ${lbu_core_hdr})
 
 configure_file(
@@ -83,9 +93,6 @@ set_property(TARGET lbu_core
              ${lbu_core_hdr}
              ${CMAKE_CURRENT_BINARY_DIR}/include/lbu/lbu_global.h)
 
-set_target_properties(lbu_core PROPERTIES
-                      SOVERSION ${LIBLBU_VERSION_MAJOR}
-                      VERSION ${LIBLBU_VERSION})
 set_property(TARGET lbu_core PROPERTY CXX_STANDARD 14)
 set_property(TARGET lbu_core PROPERTY CXX_STANDARD_REQUIRED 1)
 
@@ -104,7 +111,15 @@ set(lbu_alsa_hdr
   alsa/lbu/alsa/alsa.h
 )
 
-add_library(lbu_alsa SHARED ${lbu_alsa_src})
+if(LBU_BUILD_STATIC)
+    add_library(lbu_alsa STATIC ${lbu_alsa_src})
+else()
+    add_library(lbu_alsa SHARED ${lbu_alsa_src})
+    set_target_properties(lbu_alsa PROPERTIES
+                          SOVERSION ${LIBLBU_VERSION_MAJOR}
+                          VERSION ${LIBLBU_VERSION})
+endif()
+
 add_custom_target(lbu_alsa_header SOURCES ${lbu_alsa_hdr})
 set_property(TARGET lbu_alsa
              PROPERTY PUBLIC_HEADER
@@ -116,10 +131,6 @@ set_property(TARGET lbu_alsa PROPERTY CXX_STANDARD_REQUIRED 1)
 pkg_search_module(LIB_ALSA REQUIRED alsa)
 target_link_libraries(lbu_alsa PUBLIC lbu_core ${LIB_ALSA_LIBRARIES})
 target_compile_options(lbu_alsa PUBLIC ${LIB_ALSA_CFLAGS})
-
-set_target_properties(lbu_alsa PROPERTIES
-                      SOVERSION ${LIBLBU_VERSION_MAJOR}
-                      VERSION ${LIBLBU_VERSION})
 
 target_include_directories(lbu_alsa PUBLIC
                            ${LIB_ALSA_INCLUDE_DIRS}
