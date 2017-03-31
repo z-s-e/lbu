@@ -175,6 +175,7 @@ namespace alsa {
 
         class channel_iter {
         public:
+            channel_iter() = default;
             channel_iter(void* data, unsigned stride)
                 : d(data), stride(stride) {}
             // default copy ctor/assignment ok
@@ -189,13 +190,19 @@ namespace alsa {
             int32_t read_i32(snd_pcm_format_t type) const;
             float read_f(snd_pcm_format_t type) const;
 
+            template< typename T >
+            T read(snd_pcm_format_t type) const;
+
             void write_i16(int16_t value, snd_pcm_format_t type);
             void write_i32(int32_t value, snd_pcm_format_t type);
             void write_f(float value, snd_pcm_format_t type);
 
+            template< typename T >
+            void write(T value, snd_pcm_format_t type);
+
         private:
-            void* d;
-            unsigned stride;
+            void* d = nullptr;
+            unsigned stride = 0;
         };
 
         channel_iter begin(unsigned channel) const;
@@ -568,6 +575,24 @@ namespace alsa {
         }
     }
 
+    template<>
+    int16_t pcm_buffer::channel_iter::read<int16_t>(snd_pcm_format_t type) const
+    {
+        return read_i16(type);
+    }
+
+    template<>
+    int32_t pcm_buffer::channel_iter::read<int32_t>(snd_pcm_format_t type) const
+    {
+        return read_i32(type);
+    }
+
+    template<>
+    float pcm_buffer::channel_iter::read<float>(snd_pcm_format_t type) const
+    {
+        return read_f(type);
+    }
+
     inline void pcm_buffer::channel_iter::write_i16(int16_t value, snd_pcm_format_t type)
     {
         switch( type ) {
@@ -638,6 +663,24 @@ namespace alsa {
         default:
             assert(false);
         }
+    }
+
+    template<>
+    void pcm_buffer::channel_iter::write<int16_t>(int16_t value, snd_pcm_format_t type)
+    {
+        write_i16(value, type);
+    }
+
+    template<>
+    void pcm_buffer::channel_iter::write<int32_t>(int32_t value, snd_pcm_format_t type)
+    {
+        write_i32(value, type);
+    }
+
+    template<>
+    void pcm_buffer::channel_iter::write<float>(float value, snd_pcm_format_t type)
+    {
+        write_f(value, type);
     }
 
     inline pcm_device::pcm_device(const char* deviceName, snd_pcm_stream_t dir, int flags, int* error)

@@ -59,9 +59,9 @@ namespace lbu {
             static_assert(Size <= std::numeric_limits<size_type>::max(), "array too big");
         }
 
-        template<typename U = T>
-        array_ref(array_ref<typename std::enable_if<std::is_const<U>::value || std::is_volatile<U>::value, std::remove_cv_t<U>>::type,
-                            SizeType> array) : d(array.data()), n(array.size())
+        template<typename U = T,
+                 typename V = typename std::enable_if_t<std::is_const<U>::value || std::is_volatile<U>::value, std::remove_cv_t<U>>>
+        array_ref(array_ref<V, SizeType> array) : d(array.data()), n(array.size())
         {
         }
 

@@ -32,6 +32,15 @@ namespace ring_spsc {
 
 namespace algorithm {
 
+    // Implementation of the 2 well known circular buffer algorithms that use a
+    // producer and consumer index (which is ideal for the consumer and producer
+    // running concurrently) for distinguishing a full from an empty buffer:
+    // - reserved_slot: the producer cannot publish the last free slot to the
+    //                  consumer until the consumer consumes more slots (thus
+    //                  making it not the last anymore)
+    // - mirrored_index: basically one bit of the indices is used to mark if the
+    //                   buffer is full or not
+
     template<class SizeType>
     SizeType continuous_slots(SizeType offset, SizeType count, SizeType n)
     {

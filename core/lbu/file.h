@@ -57,7 +57,6 @@ namespace file {
         OpenQuotaExhausted = EDQUOT,
         OpenAlreadyExists = EEXIST,
         OpenBadPathParameter = EFAULT,
-        OpenInterrupted = EINTR,
         OpenInvalidOrUnsupportedFlags = EINVAL,
         OpenIsDirectory = EISDIR,
         OpenTooManySymLinks = ELOOP,
@@ -80,10 +79,16 @@ namespace file {
 
     inline int open(int* filedes, const char *pathname, int flags, int mode = (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP))
     {
-        *filedes = ::open(pathname, flags, mode);
-        if( *filedes == -1 )
+        int fd;
+        while( true ) {
+            fd = ::open(pathname, flags, mode);
+            *filedes = fd;
+            if( fd >= 0 )
+                return OpenNoError;
+            if( errno == EINTR )
+                continue;
             return errno;
-        return OpenNoError;
+        }
     }
 
 

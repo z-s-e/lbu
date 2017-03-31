@@ -137,10 +137,10 @@ namespace lbu {
     struct endian<int64_t> : public endian_unsigned_forwarder<int64_t, uint64_t> {};
 
     template<>
-    struct endian<float, std::enable_if< sizeof(float) == 4 >::type > : public endian_unsigned_forwarder<float, uint32_t> {};
+    struct endian<float, std::enable_if_t< sizeof(float) == 4 > > : public endian_unsigned_forwarder<float, uint32_t> {};
 
     template<>
-    struct endian<double, std::enable_if< sizeof(double) == 8 >::type > : public endian_unsigned_forwarder<double, uint64_t> {};
+    struct endian<double, std::enable_if_t< sizeof(double) == 8 > > : public endian_unsigned_forwarder<double, uint64_t> {};
 
 
     template< typename T >

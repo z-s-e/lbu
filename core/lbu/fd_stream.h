@@ -99,13 +99,7 @@ namespace stream {
     class socket_stream_pair {
     public:
         explicit LIBLBU_EXPORT socket_stream_pair(uint32_t bufsize = DefaultBufferSize);
-        explicit socket_stream_pair(fd::unique_fd filedes,
-                                    FdBlockingState b = FdBlockingState::Unknown,
-                                    uint32_t bufsize = DefaultBufferSize)
-            : socket_stream_pair(bufsize)
-        {
-            reset(std::move(filedes), b);
-        }
+        LIBLBU_EXPORT socket_stream_pair(uint32_t bufsize_read, uint32_t bufsize_write);
 
         LIBLBU_EXPORT ~socket_stream_pair();
 

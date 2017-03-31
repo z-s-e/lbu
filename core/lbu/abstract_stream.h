@@ -216,6 +216,13 @@ namespace detail {
 
     class abstract_output_stream : protected detail::abstract_stream_base {
     public:
+        /// Destructor.
+        ///
+        /// Note that this does not call flush_buffer, it is the user's responsibility
+        /// to properly flush all buffers before the destructor is run.
+        ///
+        /// Rationale: flushing is an operation that can fail or block, it should not be
+        /// called implicitly.
         virtual LIBLBU_EXPORT ~abstract_output_stream();
 
         /// Write from buf to the stream.
@@ -259,7 +266,8 @@ namespace detail {
         /// no error occured (but flushing the internal buffers would block).
         bool flush_buffer(Mode mode = Mode::Blocking)
         {
-            assert(manages_buffer());
+            if( ! manages_buffer() )
+                return true;
             return write_buffer_flush(mode);
         }
 

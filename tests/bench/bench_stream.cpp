@@ -518,7 +518,7 @@ private Q_SLOTS:
                     Q_ASSERT(false);
             }
 
-            if( s->manages_buffer() && ! s->flush_buffer() )
+            if( ! s->flush_buffer() )
                 Q_ASSERT(false);
             t->wait();
         }

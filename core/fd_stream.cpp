@@ -203,6 +203,8 @@ array_ref<void> fd_output_stream::get_write_buffer(Mode mode)
 
 bool fd_output_stream::write_buffer_flush(Mode mode)
 {
+    if( bufferOffset == 0 )
+        return true;
     return buffer_flush(mode);
 }
 
@@ -289,6 +291,12 @@ void fd_output_stream::reset_buffer()
 socket_stream_pair::socket_stream_pair(uint32_t bufsize)
     : in(array_ref<char>(xmalloc<char>(bufsize), bufsize))
     , out(array_ref<char>(xmalloc<char>(bufsize), bufsize))
+{
+}
+
+socket_stream_pair::socket_stream_pair(uint32_t bufsize_read, uint32_t bufsize_write)
+    : in(array_ref<char>(xmalloc<char>(bufsize_read), bufsize_read))
+    , out(array_ref<char>(xmalloc<char>(bufsize_write), bufsize_write))
 {
 }
 
