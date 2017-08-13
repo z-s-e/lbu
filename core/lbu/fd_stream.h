@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -103,7 +103,9 @@ namespace stream {
 
         LIBLBU_EXPORT ~socket_stream_pair();
 
-        LIBLBU_EXPORT void reset(fd::unique_fd filedes, FdBlockingState b = FdBlockingState::Unknown);
+        LIBLBU_EXPORT void reset(fd::unique_fd filedes = {}, FdBlockingState b = FdBlockingState::Unknown);
+
+        LIBLBU_EXPORT fd::unique_fd take_reset(fd::unique_fd filedes = {}, FdBlockingState b = FdBlockingState::Unknown);
 
         abstract_input_stream* input_stream() { return &in; }
         int input_status() const { return in.status(); }

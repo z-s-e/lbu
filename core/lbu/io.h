@@ -116,9 +116,7 @@ namespace io {
     inline int read_all(int filedes, array_ref<void> buffer)
     {
         auto buf = buffer.array_static_cast<char>();
-        while( true ) {
-            if( buf.size() == 0 )
-                return ReadNoError;
+        while( buf.size() > 0 ) {
             const auto r = ::read(filedes, buf.data(), buf.size());
             if( r > 0 ) {
                 buf = buf.sub(size_t(r));
@@ -129,6 +127,7 @@ namespace io {
             if( errno != EINTR )
                 return errno;
         }
+        return ReadNoError;
     }
 
 
@@ -159,19 +158,18 @@ namespace io {
     inline int write_all(int filedes, array_ref<const void> buffer)
     {
         auto buf = buffer.array_static_cast<char>();
-        while( true ) {
-            if( buf.size() == 0 )
-                return WriteNoError;
+        while( buf.size() > 0 ) {
             const auto r = ::write(filedes, buf.data(), buf.size());
             if( r > 0 ) {
                 buf = buf.sub(size_t(r));
                 continue;
             }
-            if( errno != EINTR )
-                return errno;
             if( r == 0 )
                 return WriteIOError;
+            if( errno != EINTR )
+                return errno;
         }
+        return WriteNoError;
     }
 
 } // namespace io

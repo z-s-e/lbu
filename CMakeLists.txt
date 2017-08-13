@@ -6,6 +6,9 @@ set(LIBLBU_VERSION_MINOR 1)
 set(LIBLBU_VERSION_PATCH 1)
 set(LIBLBU_VERSION "${LIBLBU_VERSION_MAJOR}.${LIBLBU_VERSION_MINOR}.${LIBLBU_VERSION_PATCH}")
 
+option(LBU_BUILD_STATIC "Build lbu as a static library" OFF)
+option(LBU_BUILD_ALSA "Build lbu alsa library" ON)
+
 set(LIB_INSTALL_DIR lib)
 set(LIB_STATIC_INSTALL_DIR lib/static)
 set(CMAKECONFIG_INSTALL_DIR lib/cmake/${PROJECT_NAME})
@@ -22,8 +25,6 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnoexcept -Wstrict-null-sentinel -Wlogical-op")
 endif()
 
-option(LBU_BUILD_STATIC "Build lbu as a static library" OFF)
-
 
 # --- TARGETS
 
@@ -33,6 +34,7 @@ set(lbu_core_src
     core/abstract_stream.cpp
     core/align.cpp
     core/array_ref.cpp
+    core/ascii.cpp
     core/buffer_stream.cpp
     core/byte_buffer.cpp
     core/c_function.cpp
@@ -43,6 +45,7 @@ set(lbu_core_src
     core/fd_stream.cpp
     core/file.cpp
     core/io.cpp
+    core/math.cpp
     core/memory.cpp
     core/pipe.cpp
     core/poll.cpp
@@ -55,6 +58,7 @@ set(lbu_core_hdr
     core/lbu/abstract_stream.h
     core/lbu/align.h
     core/lbu/array_ref.h
+    core/lbu/ascii.h
     core/lbu/buffer_stream.h
     core/lbu/byte_buffer.h
     core/lbu/c_function.h
@@ -64,6 +68,7 @@ set(lbu_core_hdr
     core/lbu/fd_stream.h
     core/lbu/file.h
     core/lbu/io.h
+    core/lbu/math.h
     core/lbu/memory.h
     core/lbu/pipe.h
     core/lbu/poll.h
@@ -101,6 +106,11 @@ target_include_directories(lbu_core PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
                            $<INSTALL_INTERFACE:${INCLUDE_IMPORT_DIR}>)
 
+install(TARGETS lbu_core EXPORT lbuTargets
+        LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+        ARCHIVE DESTINATION ${LIB_STATIC_INSTALL_DIR}
+        PUBLIC_HEADER DESTINATION ${INCLUDE_INSTALL_DIR})
+
 
 ## Alsa
 
@@ -111,50 +121,45 @@ set(lbu_alsa_hdr
   alsa/lbu/alsa/alsa.h
 )
 
-if(LBU_BUILD_STATIC)
-    add_library(lbu_alsa STATIC ${lbu_alsa_src})
-else()
-    add_library(lbu_alsa SHARED ${lbu_alsa_src})
-    set_target_properties(lbu_alsa PROPERTIES
-                          SOVERSION ${LIBLBU_VERSION_MAJOR}
-                          VERSION ${LIBLBU_VERSION})
+if(LBU_BUILD_ALSA)
+    if(LBU_BUILD_STATIC)
+        add_library(lbu_alsa STATIC ${lbu_alsa_src})
+    else()
+        add_library(lbu_alsa SHARED ${lbu_alsa_src})
+        set_target_properties(lbu_alsa PROPERTIES
+                            SOVERSION ${LIBLBU_VERSION_MAJOR}
+                            VERSION ${LIBLBU_VERSION})
+    endif()
+
+    add_custom_target(lbu_alsa_header SOURCES ${lbu_alsa_hdr})
+    set_property(TARGET lbu_alsa
+                PROPERTY PUBLIC_HEADER
+                ${lbu_alsa_hdr})
+
+    set_property(TARGET lbu_alsa PROPERTY CXX_STANDARD 14)
+    set_property(TARGET lbu_alsa PROPERTY CXX_STANDARD_REQUIRED 1)
+
+    pkg_search_module(LIB_ALSA REQUIRED alsa)
+    target_link_libraries(lbu_alsa PUBLIC lbu_core ${LIB_ALSA_LIBRARIES})
+    target_compile_options(lbu_alsa PUBLIC ${LIB_ALSA_CFLAGS})
+
+    target_include_directories(lbu_alsa PUBLIC
+                            ${LIB_ALSA_INCLUDE_DIRS}
+                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/alsa>
+                            $<INSTALL_INTERFACE:${INCLUDE_IMPORT_DIR}>)
+    
+    install(TARGETS lbu_alsa EXPORT lbuTargets
+        LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+        ARCHIVE DESTINATION ${LIB_STATIC_INSTALL_DIR}
+        PUBLIC_HEADER DESTINATION ${INCLUDE_INSTALL_DIR}/alsa)
 endif()
-
-add_custom_target(lbu_alsa_header SOURCES ${lbu_alsa_hdr})
-set_property(TARGET lbu_alsa
-             PROPERTY PUBLIC_HEADER
-             ${lbu_alsa_hdr})
-
-set_property(TARGET lbu_alsa PROPERTY CXX_STANDARD 14)
-set_property(TARGET lbu_alsa PROPERTY CXX_STANDARD_REQUIRED 1)
-
-pkg_search_module(LIB_ALSA REQUIRED alsa)
-target_link_libraries(lbu_alsa PUBLIC lbu_core ${LIB_ALSA_LIBRARIES})
-target_compile_options(lbu_alsa PUBLIC ${LIB_ALSA_CFLAGS})
-
-target_include_directories(lbu_alsa PUBLIC
-                           ${LIB_ALSA_INCLUDE_DIRS}
-                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/alsa>
-                           $<INSTALL_INTERFACE:${INCLUDE_IMPORT_DIR}>)
-
 
 # --- TESTS
 
 enable_testing()
 add_subdirectory(tests)
 
-# --- INSTALL
-
-install(TARGETS lbu_core EXPORT lbuTargets
-        LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-        ARCHIVE DESTINATION ${LIB_STATIC_INSTALL_DIR}
-        PUBLIC_HEADER DESTINATION ${INCLUDE_INSTALL_DIR})
-
-install(TARGETS lbu_alsa EXPORT lbuTargets
-        LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-        ARCHIVE DESTINATION ${LIB_STATIC_INSTALL_DIR}
-        PUBLIC_HEADER DESTINATION ${INCLUDE_INSTALL_DIR}/alsa)
-
+# --- CMAKE INSTALL
 
 include(CMakePackageConfigHelpers)
 configure_package_config_file(

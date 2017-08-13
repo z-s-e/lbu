@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -87,7 +87,7 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
             //            performance (though it might not matter much...)
             internalArray[0] = buf_array[0];
             internalArray[1] = io::io_vec(bufferBase, bufferMaxSize);
-            buf_array = {internalArray};
+            buf_array = array_ref<io::io_vector>(internalArray);
         }
     } else if( mode == Mode::NonBlocking ) {
         if( buf_array.size() == 0 )
@@ -225,7 +225,7 @@ ssize_t fd_output_stream::write_fd(array_ref<io::io_vector> buf_array, Mode mode
             internalArray[0] = io::io_vec(bufferBase + bufferWriteOffset,
                                           internalWriteSize);
             internalArray[1] = buf_array[0];
-            buf_array = {internalArray};
+            buf_array = array_ref<io::io_vector>(internalArray);
         }
     }
 
@@ -315,6 +315,15 @@ void socket_stream_pair::reset(fd::unique_fd filedes, FdBlockingState b)
     int fd = filedes.release();
     in.set_descriptor(fd, b);
     out.set_descriptor(fd, b);
+}
+
+fd::unique_fd socket_stream_pair::take_reset(fd::unique_fd filedes, FdBlockingState b)
+{
+    int old = in.descriptor();
+    int fd = filedes.release();
+    in.set_descriptor(fd, b);
+    out.set_descriptor(fd, b);
+    return fd::unique_fd(old);
 }
 
 

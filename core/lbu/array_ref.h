@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -48,24 +48,27 @@ namespace lbu {
         array_ref() = default; // default copy ctor/assignment ok
 
         template< size_t Size >
-        array_ref(T (&array)[Size]) : d(array), n(size_type(Size))
+        explicit array_ref(T (&array)[Size]) : d(array), n(size_type(Size))
         {
             static_assert(Size <= std::numeric_limits<size_type>::max(), "array too big");
         }
 
         template< size_t Size >
-        array_ref(std::array<T, Size>& array) : d(array.data()), n(size_type(Size))
+        explicit array_ref(std::array<T, Size>& array) : d(array.data()), n(size_type(Size))
         {
             static_assert(Size <= std::numeric_limits<size_type>::max(), "array too big");
         }
 
         template<typename U = T,
-                 typename V = typename std::enable_if_t<std::is_const<U>::value || std::is_volatile<U>::value, std::remove_cv_t<U>>>
+                 typename V = typename std::enable_if_t<std::is_const<U>::value, std::remove_const_t<U>>>
         array_ref(array_ref<V, SizeType> array) : d(array.data()), n(array.size())
         {
         }
 
-        array_ref(pointer data, size_type size) : d(data), n(size) {}
+        array_ref(pointer data, size_type size) : d(data), n(size)
+        {
+            assert(data != nullptr || size == 0);
+        }
 
         array_ref(pointer begin, pointer end) : d(begin), n(size_type(end - begin))
         {
