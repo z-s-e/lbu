@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -336,7 +336,7 @@ namespace lbu {
         const auto secondIndex = index + count;
         const auto newSize = oldSize - count;
         char* c = char_data();
-        std::memmove(c + index, c + secondIndex, count);
+        std::memmove(c + index, c + secondIndex, oldSize - secondIndex);
         d.ext.size = newSize;
         return *this;
     }
@@ -379,9 +379,9 @@ namespace lbu {
     {
         assert(size <= SmallResered);
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-        d.small.size = SmallFlag & (size << 1);
+        d.small.size = SmallFlag | (size << 1);
 #else
-        d.small.size = SmallFlag & size;
+        d.small.size = SmallFlag | size;
 #endif
     }
 
@@ -398,8 +398,7 @@ namespace lbu {
 
     inline array_ref<char> byte_buffer::char_ref() const
     {
-        return is_small() ? array_ref<char>(const_cast<char*>(d.small.data), small_size())
-                          : array_ref<char>(d.ext.data, d.ext.size);
+        return array_ref<char>(char_data(), size());
     }
 
     inline size_t byte_buffer::ext_capacity() const
@@ -458,10 +457,11 @@ namespace lbu {
     inline array_ref<void> byte_buffer::append_base(size_t count)
     {
         const auto oldSize = size();
+        assert(max_size() - oldSize >= count);
         const auto newSize = oldSize + count;
         char* c = char_data();
 
-        if( capacity() - oldSize < count ) {
+        if( capacity() < newSize ) {
             const auto newCapacity = grow_capacity(newSize);
             char* newC;
 
@@ -473,6 +473,8 @@ namespace lbu {
             }
             set_ext(newC, newSize, newCapacity);
             c = newC;
+        } else {
+            set_size_checked(newSize);
         }
 
         return array_ref<char>(c + oldSize, count);
