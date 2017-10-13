@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -46,16 +46,16 @@ namespace stream {
     class ring_spsc {
     private:
         struct data {
-            uint32_t bufferMaxSize = 0;
             ring_spsc_shared_data* shared = {};
-            uint32_t bufferLimit = DefaultBufferSegmentLimit;
+            uint32_t ringSize = 0;
+            uint32_t segmentLimit = DefaultRingSegmentLimit;
             uint32_t lastIndex = 0;
             int fd = -1;
         };
 
     public:
 
-        static constexpr uint32_t DefaultBufferSegmentLimit = (1 << 15);
+        static constexpr uint32_t DefaultRingSegmentLimit = (1 << 15);
 
         class input_stream : public abstract_input_stream {
         public:
@@ -70,10 +70,10 @@ namespace stream {
 
             LIBLBU_EXPORT void reset(array_ref<void> buffer, int event_fd, ring_spsc_shared_data* s);
 
-            uint32_t buffer_segment_limit() const { return d.bufferLimit; }
-            void set_buffer_segment_limit(uint32_t limit)
+            uint32_t segment_size_limit() const { return d.segmentLimit; }
+            void set_segment_size_limit(uint32_t limit)
             {
-                d.bufferLimit = limit > 0 ? limit : 1;
+                d.segmentLimit = limit > 0 ? limit : 1;
             }
 
             int event_fd() const { return d.fd; }
@@ -87,7 +87,8 @@ namespace stream {
 
         private:
             array_ref<const void> next_buffer(Mode mode);
-            void update_buffer_state(uint32_t producer_index, uint32_t consumer_index);
+            bool update_buffer_size(ring_spsc_shared_data* shared, uint32_t consumer_index,
+                                    uint32_t segmentLimit, uint32_t ringSize);
 
             data d;
         };
@@ -106,10 +107,10 @@ namespace stream {
 
             LIBLBU_EXPORT void reset(array_ref<void> buffer, int event_fd, ring_spsc_shared_data* s);
 
-            uint32_t buffer_segment_limit() const { return d.bufferLimit; }
-            void set_buffer_segment_limit(uint32_t limit)
+            uint32_t segment_size_limit() const { return d.segmentLimit; }
+            void set_segment_size_limit(uint32_t limit)
             {
-                d.bufferLimit = limit > 0 ? limit : 1;
+                d.segmentLimit = limit > 0 ? limit : 1;
             }
 
             int event_fd() const { return d.fd; }
@@ -124,22 +125,24 @@ namespace stream {
 
         private:
             array_ref<void> next_buffer(Mode mode);
-            void update_buffer_state(uint32_t producer_index, uint32_t consumer_index);
+            bool update_buffer_size(ring_spsc_shared_data* shared, uint32_t producer_index,
+                                    uint32_t segmentLimit, uint32_t ringSize);
 
             data d;
         };
 
 
-        static void pair_streams(output_stream* out, input_stream* in,
+        static void pair_streams(output_stream* out,
+                                 input_stream* in,
                                  array_ref<void> buffer,
                                  int event_fd,
                                  ring_spsc_shared_data* s,
-                                 uint32_t buffer_limit = DefaultBufferSegmentLimit)
+                                 uint32_t segment_limit = DefaultRingSegmentLimit)
         {
             out->reset(buffer, event_fd, s);
-            out->set_buffer_segment_limit(buffer_limit);
+            out->set_segment_size_limit(segment_limit);
             in->reset(buffer, event_fd, s);
-            in->set_buffer_segment_limit(buffer_limit);
+            in->set_segment_size_limit(segment_limit);
         }
     };
 
@@ -147,7 +150,7 @@ namespace stream {
 
     class ring_spsc_basic_controller {
     public:
-        static const uint32_t DefaultRingBufferSize = 2 * ring_spsc::DefaultBufferSegmentLimit;
+        static const uint32_t DefaultRingBufferSize = 2 * ring_spsc::DefaultRingSegmentLimit;
 
         explicit LIBLBU_EXPORT ring_spsc_basic_controller(uint32_t bufsize = DefaultRingBufferSize);
 
@@ -155,7 +158,7 @@ namespace stream {
 
         LIBLBU_EXPORT bool pair_streams(ring_spsc::output_stream* out,
                                         ring_spsc::input_stream* in,
-                                        uint32_t buffer_limit = ring_spsc::DefaultBufferSegmentLimit);
+                                        uint32_t segment_limit = ring_spsc::DefaultRingSegmentLimit);
 
         ring_spsc_basic_controller(const ring_spsc_basic_controller&) = delete;
         ring_spsc_basic_controller& operator=(const ring_spsc_basic_controller&) = delete;
