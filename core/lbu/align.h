@@ -45,13 +45,13 @@ namespace lbu {
         return (offset & alignment_mask(alignment)) == 0;
     }
 
-    constexpr bool is_aligned(const void* ptr, size_t alignment)
+    inline bool is_aligned(const void* ptr, size_t alignment)
     {
         return is_aligned(uintptr_t(ptr), alignment);
     }
 
     template< typename T >
-    constexpr bool is_aligned(const void* ptr)
+    bool is_aligned(const void* ptr)
     {
         return is_aligned(ptr, alignof(T));
     }
@@ -61,12 +61,12 @@ namespace lbu {
         return offset & ~alignment_mask(alignment);
     }
 
-    constexpr void* align_down(void* ptr, size_t alignment)
+    inline void* align_down(void* ptr, size_t alignment)
     {
         return reinterpret_cast<void*>(align_down(uintptr_t(ptr), alignment));
     }
 
-    constexpr const void* align_down(const void* ptr, size_t alignment)
+    inline const void* align_down(const void* ptr, size_t alignment)
     {
         return reinterpret_cast<const void*>(align_down(uintptr_t(ptr), alignment));
     }
@@ -81,12 +81,12 @@ namespace lbu {
         return align_down(offset + alignment - 1, alignment);
     }
 
-    constexpr void* align_up(void* ptr, size_t alignment)
+    inline void* align_up(void* ptr, size_t alignment)
     {
         return reinterpret_cast<void*>(align_up(uintptr_t(ptr), alignment));
     }
 
-    constexpr const void* align_up(const void* ptr, size_t alignment)
+    inline const void* align_up(const void* ptr, size_t alignment)
     {
         return reinterpret_cast<const void*>(align_up(uintptr_t(ptr), alignment));
     }
