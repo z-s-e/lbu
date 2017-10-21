@@ -79,7 +79,6 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
 
     if( manages_buffer() ) {
         assert(buf_array.size() == 1);
-        assert(buf_array[0].iov_len > 0);
         if( buf_array[0].iov_len <= bufferMaxSize) {
             // Only fill the internal buffer if the requested read size fits in the buffer.
             // Rationale: It is likely that the user will continue reading in large blocks,
@@ -89,11 +88,14 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
             internalArray[1] = io::io_vec(bufferBase, bufferMaxSize);
             buf_array = array_ref<io::io_vector>(internalArray);
         }
-    } else if( mode == Mode::NonBlocking ) {
-        if( buf_array.size() == 0 )
+    } else if( buf_array.size() == 0 ) {
+        if( mode == Mode::Blocking ) {
+            err = io::ReadBadRequest;
+            statusFlags = StatusError;
+            return -1;
+        } else {
             return 0;
-        if( buf_array[0].iov_len == 0 && io::io_vector_array_size_sum(buf_array) == 0 )
-            return 0;
+        }
     }
 
     const size_t firstReadRequest = buf_array[0].iov_len;
@@ -130,7 +132,8 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
                 }
                 return -1;
             } else {
-                statusFlags = StatusEndOfStream;
+                if( io::io_vector_array_size_sum(buf_array) > 0 )
+                    statusFlags = StatusEndOfStream;
                 return 0;
             }
         } else if( e == io::ReadWouldBlock && mode == Mode::NonBlocking ) {

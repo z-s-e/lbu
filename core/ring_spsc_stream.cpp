@@ -132,8 +132,8 @@ array_ref<const void> ring_spsc::input_stream::next_buffer(Mode mode)
     d.lastIndex = consumerIdx;
     bufferOffset = alg::offset(consumerIdx, n);
 
-    bool wakeProducer = true;
-    if( s->producer_wake.compare_exchange_strong(wakeProducer, false) ) {
+    bool wakeProducer = count > 0;
+    if( wakeProducer && s->producer_wake.compare_exchange_strong(wakeProducer, false) ) {
         if( ! consumer_read(fd) )
             goto error;
     }
@@ -222,11 +222,17 @@ ssize_t ring_spsc::output_stream::write_stream(array_ref<io::io_vector> buf_arra
     auto src = io::io_vec_to_array(buf_array[0]).array_static_cast<char>();
 
     array_ref<void> buf = current_buffer();
-    assert(buf.size() < src.size());
     size_t count = buf.size();
-    std::memcpy(buf.data(), src.data(), count);
-    advance_whole_buffer();
-    src = src.sub(count);
+
+    if( src.size() > 0 ) {
+        assert(count < src.size());
+        std::memcpy(buf.data(), src.data(), count);
+        advance_whole_buffer();
+        src = src.sub(count);
+    } else {
+        assert(count == 0);
+        mode = Mode::NonBlocking;
+    }
 
     while( true ) {
         buf = next_buffer(mode);
@@ -275,8 +281,8 @@ array_ref<void> ring_spsc::output_stream::next_buffer(Mode mode)
     d.lastIndex = producerIdx;
     bufferOffset = alg::offset(producerIdx, n);
 
-    bool wakeConsumer = true;
-    if( s->consumer_wake.compare_exchange_strong(wakeConsumer, false) ) {
+    bool wakeConsumer = count > 0;
+    if( wakeConsumer && s->consumer_wake.compare_exchange_strong(wakeConsumer, false) ) {
         if( ! producer_write(fd) )
             goto error;
     }
