@@ -20,6 +20,7 @@
 #ifndef LIBLBU_MEMORY_H
 #define LIBLBU_MEMORY_H
 
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <type_traits>

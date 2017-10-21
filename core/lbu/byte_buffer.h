@@ -25,6 +25,7 @@
 #include "lbu/xmalloc.h"
 
 #include <algorithm>
+#include <endian.h>
 #include <stdint.h>
 
 #ifndef __BYTE_ORDER
