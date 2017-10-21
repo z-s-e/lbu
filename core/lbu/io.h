@@ -45,17 +45,26 @@ namespace io {
         return io_vec(buf.data(), buf.byte_size());
     }
 
-    inline array_ref<void> io_vec_to_array(io_vector v)
+    inline array_ref<void> io_vec_to_array_ref(io_vector v)
     {
         return array_ref<char>(static_cast<char*>(v.iov_base), v.iov_len);
     }
 
-    inline size_t io_vector_array_size_sum(array_ref<io_vector> array)
+    inline size_t io_vector_array_size_sum(array_ref<const io_vector> array)
     {
         size_t result = 0;
         for( auto v : array )
             result += v.iov_len;
         return result;
+    }
+
+    inline bool io_vector_array_has_zero_size(array_ref<const io_vector> array)
+    {
+        for( auto v : array ) {
+            if( v.iov_len > 0 )
+                return false;
+        }
+        return true;
     }
 
     inline array_ref<io_vector> io_vector_array_advance(array_ref<io_vector> array, size_t size)

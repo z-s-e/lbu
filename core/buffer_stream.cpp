@@ -81,7 +81,7 @@ void byte_buffer_output_stream::reset(byte_buffer &&buf)
 ssize_t byte_buffer_output_stream::write_stream(array_ref<io::io_vector> buf_array, Mode)
 {
     buffer.append_commit(bufferOffset - buffer.size());
-    const auto buf = io::io_vec_to_array(buf_array[0]);
+    const auto buf = io::io_vec_to_array_ref(buf_array[0]);
     if( buffer.max_size() - buffer.size() > buf.byte_size() ) {
         statusFlags = StatusError;
         return -1;

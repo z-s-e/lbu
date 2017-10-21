@@ -36,10 +36,12 @@ namespace stream {
 
     class fd_input_stream : public abstract_input_stream {
     public:
-        explicit LIBLBU_EXPORT fd_input_stream(array_ref<void> buffer);
+        explicit LIBLBU_EXPORT fd_input_stream(array_ref<void> buffer,
+                                               int filedes = -1,
+                                               FdBlockingState b = FdBlockingState::Unknown);
         LIBLBU_EXPORT ~fd_input_stream() override;
 
-        LIBLBU_EXPORT void set_descriptor(int filedes, FdBlockingState b);
+        LIBLBU_EXPORT void set_descriptor(int filedes, FdBlockingState b = FdBlockingState::Unknown);
         int descriptor() const { return fd; }
 
         int status() const { return err; }
@@ -56,17 +58,19 @@ namespace stream {
     private:
         FdBlockingState fdBlocking;
         int fd;
-        uint32_t bufferMaxSize;
+        uint32_t bufferCapacity;
         int err;
     };
 
 
     class fd_output_stream : public abstract_output_stream {
     public:
-        explicit LIBLBU_EXPORT fd_output_stream(array_ref<void> buffer);
+        explicit LIBLBU_EXPORT fd_output_stream(array_ref<void> buffer,
+                                                int filedes = -1,
+                                                FdBlockingState b = FdBlockingState::Unknown);
         LIBLBU_EXPORT ~fd_output_stream() override;
 
-        LIBLBU_EXPORT void set_descriptor(int filedes, FdBlockingState b);
+        LIBLBU_EXPORT void set_descriptor(int filedes, FdBlockingState b = FdBlockingState::Unknown);
         int descriptor() const { return fd; }
 
         int status() const { return err; }
@@ -88,7 +92,7 @@ namespace stream {
 
         FdBlockingState fdBlocking;
         int fd;
-        uint32_t bufferMaxSize;
+        uint32_t bufferCapacity;
         uint32_t bufferWriteOffset;
         int err;
     };
@@ -103,9 +107,8 @@ namespace stream {
 
         LIBLBU_EXPORT ~socket_stream_pair();
 
-        LIBLBU_EXPORT void reset(fd::unique_fd filedes = {}, FdBlockingState b = FdBlockingState::Unknown);
-
-        LIBLBU_EXPORT fd::unique_fd take_reset(fd::unique_fd filedes = {}, FdBlockingState b = FdBlockingState::Unknown);
+        LIBLBU_EXPORT fd::unique_fd take_reset(fd::unique_fd filedes = {},
+                                               FdBlockingState b = FdBlockingState::Unknown);
 
         abstract_input_stream* input_stream() { return &in; }
         int input_status() const { return in.status(); }

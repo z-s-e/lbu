@@ -33,6 +33,7 @@ namespace stream {
             , consumer_index(0)
             , producer_wake(false)
             , consumer_wake(true)
+            , eos(false)
         {}
 
         LIBLBU_EXPORT static bool open_event_fd(int* event_fd);
@@ -41,6 +42,7 @@ namespace stream {
         std::atomic<uint32_t> consumer_index;
         std::atomic<bool> producer_wake;
         std::atomic<bool> consumer_wake;
+        std::atomic<bool> eos;
     };
 
     class ring_spsc {
@@ -60,10 +62,10 @@ namespace stream {
         class input_stream : public abstract_input_stream {
         public:
             LIBLBU_EXPORT input_stream();
-            input_stream(array_ref<void> buffer, int event_fd, ring_spsc_shared_data* shared)
+            input_stream(array_ref<void> buffer, int event_fd, ring_spsc_shared_data* s)
                 : input_stream()
             {
-                reset(buffer, event_fd, shared);
+                reset(buffer, event_fd, s);
             }
 
             LIBLBU_EXPORT ~input_stream() override;
@@ -97,13 +99,15 @@ namespace stream {
         class output_stream : public abstract_output_stream {
         public:
             LIBLBU_EXPORT output_stream();
-            output_stream(array_ref<void> buffer, int event_fd, ring_spsc_shared_data* shared)
+            output_stream(array_ref<void> buffer, int event_fd, ring_spsc_shared_data* s)
                 : output_stream()
             {
-                reset(buffer, event_fd, shared);
+                reset(buffer, event_fd, s);
             }
 
             LIBLBU_EXPORT ~output_stream() override;
+
+            LIBLBU_EXPORT bool set_end_of_stream();
 
             LIBLBU_EXPORT void reset(array_ref<void> buffer, int event_fd, ring_spsc_shared_data* s);
 

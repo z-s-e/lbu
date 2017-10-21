@@ -44,14 +44,18 @@ static inline void update_blocking(Mode mode, FdBlockingState *block, int fd)
 }
 
 
-fd_input_stream::fd_input_stream(array_ref<void> buffer)
+fd_input_stream::fd_input_stream(array_ref<void> buffer,
+                                 int filedes,
+                                 FdBlockingState b)
     : abstract_input_stream(buffer ? InternalBuffer::Yes : InternalBuffer::No)
     , fdBlocking(FdBlockingState::Unknown)
     , fd(-1)
     , err(io::ReadNoError)
 {
     bufferBase = static_cast<char*>(buffer.data());
-    bufferMaxSize = std::min(buffer.byte_size(), size_t(std::numeric_limits<uint32_t>::max()));
+    bufferCapacity = std::min(buffer.byte_size(), size_t(std::numeric_limits<uint32_t>::max()));
+    if( filedes >= 0 )
+        set_descriptor(filedes, b);
 }
 
 fd_input_stream::~fd_input_stream()
@@ -79,13 +83,13 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
 
     if( manages_buffer() ) {
         assert(buf_array.size() == 1);
-        if( buf_array[0].iov_len <= bufferMaxSize) {
+        if( buf_array[0].iov_len <= bufferCapacity) {
             // Only fill the internal buffer if the requested read size fits in the buffer.
             // Rationale: It is likely that the user will continue reading in large blocks,
             //            where using the internal buffer might be actually worse for
             //            performance (though it might not matter much...)
             internalArray[0] = buf_array[0];
-            internalArray[1] = io::io_vec(bufferBase, bufferMaxSize);
+            internalArray[1] = io::io_vec(bufferBase, bufferCapacity);
             buf_array = array_ref<io::io_vector>(internalArray);
         }
     } else if( buf_array.size() == 0 ) {
@@ -123,7 +127,7 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
             return ssize_t(count);
         } else if( r == 0 ) {
             if( mode == Mode::Blocking ) {
-                if( io::io_vector_array_size_sum(buf_array) == 0 ) {
+                if( io::io_vector_array_has_zero_size(buf_array) ) {
                     err = io::ReadBadRequest;
                     statusFlags = StatusError;
                 } else {
@@ -132,7 +136,7 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
                 }
                 return -1;
             } else {
-                if( io::io_vector_array_size_sum(buf_array) > 0 )
+                if( ! io::io_vector_array_has_zero_size(buf_array) )
                     statusFlags = StatusEndOfStream;
                 return 0;
             }
@@ -153,7 +157,7 @@ array_ref<const void> fd_input_stream::get_read_buffer(Mode mode)
     update_blocking(mode, &fdBlocking, fd);
 
     ssize_t r;
-    int e = io::read(fd, array_ref<char>(bufferBase, bufferMaxSize), &r);
+    int e = io::read(fd, array_ref<char>(bufferBase, bufferCapacity), &r);
     if( r > 0 ) {
         bufferOffset = 0;
         bufferSize = uint32_t(r);
@@ -170,7 +174,9 @@ array_ref<const void> fd_input_stream::get_read_buffer(Mode mode)
     return {};
 }
 
-fd_output_stream::fd_output_stream(array_ref<void> buffer)
+fd_output_stream::fd_output_stream(array_ref<void> buffer,
+                                   int filedes,
+                                   FdBlockingState b)
     : abstract_output_stream(buffer ? InternalBuffer::Yes : InternalBuffer::No)
     , fdBlocking(FdBlockingState::Unknown)
     , fd(-1)
@@ -178,7 +184,9 @@ fd_output_stream::fd_output_stream(array_ref<void> buffer)
     , err(io::WriteNoError)
 {
     bufferBase = static_cast<char*>(buffer.data());
-    bufferMaxSize = std::min(buffer.byte_size(), size_t(std::numeric_limits<uint32_t>::max()));
+    bufferCapacity = std::min(buffer.byte_size(), size_t(std::numeric_limits<uint32_t>::max()));
+    if( filedes >= 0 )
+        set_descriptor(filedes, b);
 }
 
 fd_output_stream::~fd_output_stream()
@@ -206,8 +214,6 @@ array_ref<void> fd_output_stream::get_write_buffer(Mode mode)
 
 bool fd_output_stream::write_buffer_flush(Mode mode)
 {
-    if( bufferOffset == 0 )
-        return true;
     return buffer_flush(mode);
 }
 
@@ -286,7 +292,7 @@ void fd_output_stream::reset_buffer()
 {
     bufferOffset = 0;
     bufferWriteOffset = 0;
-    bufferSize = bufferMaxSize;
+    bufferSize = bufferCapacity;
     statusFlags = manages_buffer() ? StatusBufferReady : 0;
 }
 
@@ -309,15 +315,6 @@ socket_stream_pair::~socket_stream_pair()
         ::close(in.descriptor());
     ::free(in.buffer_base());
     ::free(out.buffer_base());
-}
-
-void socket_stream_pair::reset(fd::unique_fd filedes, FdBlockingState b)
-{
-    if( in.descriptor() >= 0 )
-        ::close(in.descriptor());
-    int fd = filedes.release();
-    in.set_descriptor(fd, b);
-    out.set_descriptor(fd, b);
 }
 
 fd::unique_fd socket_stream_pair::take_reset(fd::unique_fd filedes, FdBlockingState b)
