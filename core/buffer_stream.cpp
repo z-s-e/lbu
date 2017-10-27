@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -36,11 +36,11 @@ void byte_buffer_input_stream::reset(array_ref<void> buf)
 {
     bufferBase = static_cast<char*>(buf.data());
     bufferOffset = 0;
-    if( buf.byte_size() < std::numeric_limits<uint32_t>::max() ) {
-        bufferSize = buf.byte_size();
-        statusFlags = bufferSize > 0 ? StatusBufferReady : 0;
+    if( buf.byte_size() <= std::numeric_limits<uint32_t>::max() ) {
+        bufferAvailable = buf.byte_size();
+        statusFlags = 0;
     } else {
-        bufferSize = 0;
+        bufferAvailable = 0;
         statusFlags = StatusError;
     }
 }
@@ -76,10 +76,13 @@ void byte_buffer_output_stream::reset(byte_buffer &&buf)
 {
     buffer = std::move(buf);
     sync_state();
+    statusFlags = 0;
 }
 
 ssize_t byte_buffer_output_stream::write_stream(array_ref<io::io_vector> buf_array, Mode)
 {
+    if( statusFlags )
+        return -1;
     buffer.append_commit(bufferOffset - buffer.size());
     const auto buf = io::io_vec_to_array_ref(buf_array[0]);
     if( buffer.max_size() - buffer.size() > buf.byte_size() ) {
@@ -93,13 +96,19 @@ ssize_t byte_buffer_output_stream::write_stream(array_ref<io::io_vector> buf_arr
 
 array_ref<void> byte_buffer_output_stream::get_write_buffer(Mode)
 {
+    if( statusFlags )
+        return {};
     buffer.auto_grow_reserve();
     sync_state();
+    if( bufferAvailable == 0 )
+        statusFlags = StatusError;
     return current_buffer();
 }
 
 bool byte_buffer_output_stream::write_buffer_flush(Mode)
 {
+    if( statusFlags )
+        return false;
     buffer.append_commit(bufferOffset - buffer.size());
     return true;
 }
@@ -108,8 +117,7 @@ void byte_buffer_output_stream::sync_state()
 {
     bufferBase = static_cast<char*>(buffer.data());
     bufferOffset = buffer.size();
-    bufferSize = buffer.capacity();
-    statusFlags = (bufferSize > bufferOffset) ? StatusBufferReady : 0;
+    bufferAvailable = buffer.capacity() - buffer.size();
 }
 
 

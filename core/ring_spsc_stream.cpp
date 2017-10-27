@@ -80,8 +80,9 @@ void ring_spsc::input_stream::reset(array_ref<void> buffer,
 
     d.lastIndex = s->consumer_index.load(std::memory_order_relaxed);
     bufferOffset = alg::offset(d.lastIndex, n);
-
     update_buffer_size(s, d.lastIndex, d.segmentLimit, n);
+
+    statusFlags = 0;
 }
 
 ssize_t ring_spsc::input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t required_read)
@@ -117,7 +118,7 @@ array_ref<const void> ring_spsc::input_stream::get_read_buffer(Mode mode)
 
 array_ref<const void> ring_spsc::input_stream::next_buffer(Mode mode)
 {
-    assert(bufferSize == 0);
+    assert(bufferAvailable == 0);
     if( statusFlags ) {
         if( mode == Mode::Blocking )
             statusFlags |= StatusError;
@@ -190,13 +191,12 @@ bool ring_spsc::input_stream::update_buffer_size(ring_spsc_shared_data* shared,
     auto b = continuous_slots(alg::offset(consumer_index, n),
                               alg::consumer_free_slots(producer_index, consumer_index, n),
                               n);
-    bufferSize = std::min(segmentLimit, b);
-    statusFlags = bufferSize > 0 ? StatusBufferReady : 0;
-    if( bufferSize == 0 && shared->eos.load(std::memory_order_acquire) ) {
+    bufferAvailable = std::min(segmentLimit, b);
+    if( bufferAvailable == 0 && shared->eos.load(std::memory_order_acquire) ) {
         statusFlags = StatusEndOfStream;
         return true;
     }
-    return bufferSize > 0;
+    return bufferAvailable > 0;
 }
 
 ring_spsc::output_stream::output_stream()
@@ -221,7 +221,7 @@ bool ring_spsc::output_stream::set_end_of_stream()
 
     s->producer_index.store(producerIdx, std::memory_order_release);
 
-    bufferSize = 0;
+    bufferAvailable = 0;
 
     d.shared->eos.store(true, std::memory_order_release);
     if( ! producer_write(fd) ) {
@@ -244,8 +244,9 @@ void ring_spsc::output_stream::reset(array_ref<void> buffer,
 
     d.lastIndex = s->producer_index.load(std::memory_order_relaxed);
     bufferOffset = alg::offset(d.lastIndex, n);
-
     update_buffer_size(s, d.lastIndex, d.segmentLimit, n);
+
+    statusFlags = 0;
 }
 
 ssize_t ring_spsc::output_stream::write_stream(array_ref<io::io_vector> buf_array, Mode mode)
@@ -306,7 +307,7 @@ bool ring_spsc::output_stream::write_buffer_flush(Mode)
 array_ref<void> ring_spsc::output_stream::next_buffer(Mode mode)
 {
     if( statusFlags ) {
-        assert(bufferSize == 0);
+        assert(bufferAvailable == 0);
         statusFlags |= StatusError;
         return {};
     }
@@ -364,7 +365,7 @@ array_ref<void> ring_spsc::output_stream::next_buffer(Mode mode)
 
 error:
     statusFlags = StatusError;
-    bufferSize = 0;
+    bufferAvailable = 0;
     return {};
 }
 
@@ -378,9 +379,8 @@ bool ring_spsc::output_stream::update_buffer_size(ring_spsc_shared_data* shared,
     auto b = continuous_slots(alg::offset(producer_index, n),
                               alg::producer_free_slots(producer_index, consumer_index, n),
                               n);
-    bufferSize = std::min(segmentLimit, b);
-    statusFlags = bufferSize > 0 ? StatusBufferReady : 0;
-    return bufferSize > 0;
+    bufferAvailable = std::min(segmentLimit, b);
+    return bufferAvailable > 0;
 }
 
 bool ring_spsc_shared_data::open_event_fd(int* event_fd)

@@ -41,6 +41,9 @@
 // - No seekable concept: when seeking is needed I believe instead of bolting an
 //   optional seek method on the stream API one should use a different, better
 //   suited abstraction altogether and keep the stream abstraction simple.
+// - No polymorphic close method: The way to properly close a stream is highly
+//   dependent on the implementation and might require more complex (possibly
+//   asynchronous) logic than what a simple close() method could abstract.
 // - Optimize for the common case: for better performance streams are usually
 //   buffered and in the common case the buffer is not empty resp. full.
 //   For that case read resp. write operations are basically a memcpy and require
@@ -74,26 +77,23 @@ namespace detail {
 
         array_ref<char> current_buffer()
         {
-            return {bufferBase + bufferOffset, bufferSize};
+            return {bufferBase + bufferOffset, bufferAvailable};
         }
 
         void advance(size_t count)
         {
-            assert(count <= bufferSize);
+            assert(count <= bufferAvailable);
             bufferOffset += count;
-            bufferSize -= count;
-            if( bufferSize == 0 )
-                statusFlags &= ~StatusBufferReady;
+            bufferAvailable -= count;
         }
 
         char* bufferBase = {};
         uint32_t bufferOffset = 0;
-        uint32_t bufferSize = 0;
+        uint32_t bufferAvailable = 0;
 
         enum StatusFlags {
-            StatusBufferReady = 1<<0,       ///< current_buffer is ready for read resp. write
-            StatusError = 1<<1,             ///< read error
-            StatusEndOfStream = 1<<2        ///< at end
+            StatusError = 1<<0,             ///< read error
+            StatusEndOfStream = 1<<1        ///< at end
         };
         unsigned char statusFlags = 0;
 
@@ -118,13 +118,11 @@ namespace detail {
         ssize_t read(void* buf, size_t size, Mode mode)
         {
             size_t bufferRead = 0;
-            if( statusFlags & StatusBufferReady ) {
+            if( bufferAvailable > 0 ) {
                 assert(manages_buffer());
-                const auto s = bufferSize;
-                assert(s > 0);
-                bufferRead = std::min(size_t(s), size);
+                assert(bufferBase != nullptr);
+                bufferRead = std::min(size_t(bufferAvailable), size);
                 const auto data = bufferBase + bufferOffset;
-                assert(data != nullptr);
                 advance_buffer(bufferRead);
                 std::memcpy(buf, data, bufferRead);
                 if( bufferRead == size )
@@ -149,9 +147,9 @@ namespace detail {
         ///
         /// Only call this after checking availabilty with manages_buffer().
         ///
-        /// If mode is Blocking, a default constructed array_ref indicates either a stream error
-        /// or end of stream, otherwise a valid ref is returned. In NonBlocking mode an invalid
-        /// ref may also be returned when no data is available without blocking.
+        /// If mode is Blocking, an empty (invalid) array_ref indicates either a stream error or
+        /// end of stream, otherwise a valid ref is returned. In NonBlocking mode an invalid ref may
+        /// also be returned when no data is available without blocking.
         ///
         /// If a valid ref is returned, it will point to a buffer containing the next data in the
         /// stream. Once done with reading, one must call advance_buffer(..) resp.
@@ -167,7 +165,7 @@ namespace detail {
         array_ref<const void> get_buffer(Mode mode)
         {
             assert(manages_buffer());
-            if( statusFlags & StatusBufferReady )
+            if( bufferAvailable > 0 )
                 return current_buffer();
             return get_read_buffer(mode);
         }
@@ -176,7 +174,7 @@ namespace detail {
         void advance_buffer(size_t count) { advance(count); }
 
         /// Move the internal buffer position to the buffer's end.
-        void advance_whole_buffer() { advance(bufferSize); }
+        void advance_whole_buffer() { advance(bufferAvailable); }
 
         /// Directly read from the stream.
         ///
@@ -234,17 +232,13 @@ namespace detail {
         /// error (possibly 0). A negative return value signals a stream error.
         ssize_t write(const void* buf, size_t size, Mode mode)
         {
-            if( (statusFlags & StatusBufferReady) ) {
+            if( bufferAvailable >= size && bufferAvailable > 0 ) {
                 assert(manages_buffer());
-                const auto s = bufferSize;
-                assert(s > 0);
-                if( s >= size ) {
-                    auto data = bufferBase + bufferOffset;
-                    assert(data != nullptr);
-                    advance_buffer(size);
-                    std::memcpy(data, buf, size);
-                    return ssize_t(size);
-                }
+                assert(bufferBase != nullptr);
+                auto data = bufferBase + bufferOffset;
+                advance_buffer(size);
+                std::memcpy(data, buf, size);
+                return ssize_t(size);
             }
             auto b = io::io_vec(const_cast<void*>(buf), size);
             return write_stream(array_ref_one_element(&b), mode);
@@ -275,9 +269,9 @@ namespace detail {
         ///
         /// Only call this after checking availabilty with manages_buffer().
         ///
-        /// If mode is Blocking, a default constructed (invalid) array_ref indicates a stream
-        /// error, otherwise a valid ref is returned. In NonBlocking mode an invalid ref may
-        /// be returned even if no error occured.
+        /// If mode is Blocking, an empty (invalid) array_ref indicates a stream error, otherwise a
+        /// valid ref is returned. In NonBlocking mode an invalid ref may be returned even if no
+        /// error occured.
         ///
         /// If a valid ref is returned, it will point to a buffer one can write into.
         /// Once done with writing, one must call advance_buffer(..) resp. advance_whole_buffer()
@@ -295,7 +289,7 @@ namespace detail {
         array_ref<void> get_buffer(Mode mode)
         {
             assert(manages_buffer());
-            if( statusFlags & StatusBufferReady )
+            if( bufferAvailable > 0 )
                 return current_buffer();
             return get_write_buffer(mode);
         }
@@ -304,7 +298,7 @@ namespace detail {
         void advance_buffer(size_t count) { advance(count); }
 
         /// Move the internal buffer position to the buffer's end.
-        void advance_whole_buffer() { advance(bufferSize); }
+        void advance_whole_buffer() { advance(bufferAvailable); }
 
         /// Directly write to the stream.
         ///

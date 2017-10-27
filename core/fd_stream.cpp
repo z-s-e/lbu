@@ -67,16 +67,18 @@ void fd_input_stream::set_descriptor(int filedes, FdBlockingState b)
     fd = filedes;
     fdBlocking = b;
     err = io::ReadNoError;
-    bufferSize = 0;
+    bufferAvailable = 0;
     bufferOffset = 0;
     statusFlags = 0;
 }
 
 ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t required_read)
 {
-    const Mode mode = (required_read > 0) ? Mode::Blocking : Mode::NonBlocking;
+    assert(bufferAvailable == 0);
     if( has_error() )
         return -1;
+
+    const Mode mode = (required_read > 0) ? Mode::Blocking : Mode::NonBlocking;
     update_blocking(mode, &fdBlocking, fd);
 
     io::io_vector internalArray[2];
@@ -118,8 +120,7 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
 
             if( manages_buffer() && count > firstReadRequest ) {
                 bufferOffset = 0;
-                bufferSize = uint32_t(count - firstReadRequest);
-                statusFlags = StatusBufferReady;
+                bufferAvailable = uint32_t(count - firstReadRequest);
                 return ssize_t(firstReadRequest);
             }
 
@@ -160,8 +161,7 @@ array_ref<const void> fd_input_stream::get_read_buffer(Mode mode)
     int e = io::read(fd, array_ref<char>(bufferBase, bufferCapacity), &r);
     if( r > 0 ) {
         bufferOffset = 0;
-        bufferSize = uint32_t(r);
-        statusFlags = StatusBufferReady;
+        bufferAvailable = uint32_t(r);
         return current_buffer();
     } else if( r == 0 ) {
         statusFlags = StatusEndOfStream;
@@ -209,7 +209,7 @@ ssize_t fd_output_stream::write_stream(array_ref<io::io_vector> buf_array, Mode 
 array_ref<void> fd_output_stream::get_write_buffer(Mode mode)
 {
     buffer_flush(mode);
-    return (statusFlags & StatusBufferReady) ? current_buffer() : array_ref<char>();
+    return current_buffer();
 }
 
 bool fd_output_stream::write_buffer_flush(Mode mode)
@@ -248,6 +248,7 @@ ssize_t fd_output_stream::write_fd(array_ref<io::io_vector> buf_array, Mode mode
             if( r < 0 ) {
                 statusFlags = StatusError;
                 err = e;
+                bufferAvailable = 0;
                 return -1;
             }
             count += r;
@@ -275,6 +276,7 @@ ssize_t fd_output_stream::write_fd(array_ref<io::io_vector> buf_array, Mode mode
         } else {
             statusFlags = StatusError;
             err = e;
+            bufferAvailable = 0;
             return -1;
         }
     }
@@ -292,8 +294,7 @@ void fd_output_stream::reset_buffer()
 {
     bufferOffset = 0;
     bufferWriteOffset = 0;
-    bufferSize = bufferCapacity;
-    statusFlags = manages_buffer() ? StatusBufferReady : 0;
+    bufferAvailable = bufferCapacity;
 }
 
 
