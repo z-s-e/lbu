@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -110,28 +110,24 @@ namespace detail {
 
         /// Read from the stream into buf.
         ///
-        /// If mode is Blocking, the function returns size on success or a negative value
-        /// on a stream error (blocking read past the end of stream is an error).
+        /// If mode is Blocking, the function returns size on success, a nonnegative value less
+        /// than size when the stream ends before size characters are read, or a negative value
+        /// on a stream error.
         ///
         /// If mode is NonBlocking, the function may read less than size characters without
-        /// error (possibly 0). A negative return value signals a stream error.
+        /// error or end of stream (possibly 0). A negative return value signals a stream error.
         ssize_t read(void* buf, size_t size, Mode mode)
         {
-            size_t bufferRead = 0;
-            if( bufferAvailable > 0 ) {
+            if( bufferAvailable >= size && bufferAvailable > 0 ) {
                 assert(manages_buffer());
                 assert(bufferBase != nullptr);
-                bufferRead = std::min(size_t(bufferAvailable), size);
-                const auto data = bufferBase + bufferOffset;
-                advance_buffer(bufferRead);
-                std::memcpy(buf, data, bufferRead);
-                if( bufferRead == size )
-                    return ssize_t(bufferRead);
+                std::memcpy(buf, bufferBase + bufferOffset, size);
+                advance_buffer(size);
+                return ssize_t(size);
             }
-            auto b = io::io_vec(static_cast<char*>(buf) + bufferRead, size - bufferRead);
-            const auto streamRead = read_stream(array_ref_one_element(&b),
-                                                mode == Mode::Blocking ? b.iov_len : 0);
-            return streamRead < 0 ? streamRead : streamRead + ssize_t(bufferRead);
+            auto b = io::io_vec(static_cast<char*>(buf), size);
+            return read_stream(array_ref_one_element(&b),
+                               mode == Mode::Blocking ? size : 0);
         }
 
         /// True iff the stream manages internal buffer.
@@ -235,9 +231,8 @@ namespace detail {
             if( bufferAvailable >= size && bufferAvailable > 0 ) {
                 assert(manages_buffer());
                 assert(bufferBase != nullptr);
-                auto data = bufferBase + bufferOffset;
+                std::memcpy(bufferBase + bufferOffset, buf, size);
                 advance_buffer(size);
-                std::memcpy(data, buf, size);
                 return ssize_t(size);
             }
             auto b = io::io_vec(const_cast<void*>(buf), size);

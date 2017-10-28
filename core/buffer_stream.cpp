@@ -45,15 +45,16 @@ void byte_buffer_input_stream::reset(array_ref<void> buf)
     }
 }
 
-ssize_t byte_buffer_input_stream::read_stream(array_ref<io::io_vector>, size_t required_read)
+ssize_t byte_buffer_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t)
 {
-    if( required_read > 0 ) {
-        statusFlags = (StatusError | StatusEndOfStream);
-        return -1;
-    } else {
-        statusFlags = StatusEndOfStream;
-        return 0;
+    const ssize_t r = bufferAvailable;
+    if( r > 0 ) {
+        std::memcpy(buf_array[0].iov_base, bufferBase + bufferOffset, bufferAvailable);
+        bufferAvailable = 0;
     }
+
+    statusFlags = StatusEndOfStream;
+    return r;
 }
 
 array_ref<const void> byte_buffer_input_stream::get_read_buffer(Mode)

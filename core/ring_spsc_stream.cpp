@@ -90,7 +90,13 @@ ssize_t ring_spsc::input_stream::read_stream(array_ref<io::io_vector> buf_array,
     const Mode mode = (required_read > 0) ? Mode::Blocking : Mode::NonBlocking;
     auto dst = io::io_vec_to_array_ref(buf_array[0]).array_static_cast<char>();
 
-    size_t count = 0;
+    size_t count = bufferAvailable;
+    if( count > 0 ) {
+        std::memcpy(buf_array[0].iov_base, bufferBase + bufferOffset, count);
+        advance_buffer(count);
+        dst = dst.sub(count);
+    }
+
     while( true ) {
         auto buf = next_buffer(mode);
         if( buf.size() == 0 )
@@ -119,11 +125,8 @@ array_ref<const void> ring_spsc::input_stream::get_read_buffer(Mode mode)
 array_ref<const void> ring_spsc::input_stream::next_buffer(Mode mode)
 {
     assert(bufferAvailable == 0);
-    if( statusFlags ) {
-        if( mode == Mode::Blocking )
-            statusFlags |= StatusError;
+    if( statusFlags )
         return {};
-    }
 
     auto s = d.shared;
     const auto n = d.ringSize;
