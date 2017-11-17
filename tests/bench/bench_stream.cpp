@@ -171,7 +171,7 @@ class Thread_FILE : public QThread {
     {
         unsigned processed = 0;
         while( processed < s_transfer_size ) {
-            const int c = fread(s_read_buffer.data(), sizeof(int), s_chunk_size, m_file);
+            const int c = fread_unlocked(s_read_buffer.data(), sizeof(int), s_chunk_size, m_file);
             Q_ASSERT(c > 0);
 
             const unsigned count = unsigned(c);
@@ -432,7 +432,7 @@ private Q_SLOTS:
                 for( unsigned j = 0; j < s_chunk_size; ++j ) {
                     s_write_buffer[j] = valueForIndex(i*s_chunk_size + j);
                 }
-                if( fwrite(s_write_buffer.data(), sizeof(int), s_chunk_size, pipe_out) != s_chunk_size )
+                if( fwrite_unlocked(s_write_buffer.data(), sizeof(int), s_chunk_size, pipe_out) != s_chunk_size )
                     Q_ASSERT(false);
             }
 

@@ -92,8 +92,8 @@ namespace detail {
         uint32_t bufferAvailable = 0;
 
         enum StatusFlags {
-            StatusError = 1<<0,             ///< read error
-            StatusEndOfStream = 1<<1        ///< at end
+            StatusError = 1<<0,
+            StatusEndOfStream = 1<<1
         };
         unsigned char statusFlags = 0;
 
