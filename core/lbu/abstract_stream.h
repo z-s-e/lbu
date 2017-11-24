@@ -333,7 +333,7 @@ namespace detail {
 
     class incremental_reader {
     public:
-        template<typename T>
+        template< typename T >
         explicit incremental_reader(T* dst) { reset(dst); }
 
         void reset(void *dst, size_t size)
@@ -342,7 +342,7 @@ namespace detail {
             left = size;
         }
 
-        template<typename T>
+        template< typename T >
         void reset(T* dst)
         {
             static_assert(std::is_pod<T>::value, "Type must be POD");
@@ -369,7 +369,7 @@ namespace detail {
 
     class incremental_writer {
     public:
-        template<typename T>
+        template< typename T >
         explicit incremental_writer(const T* dst) { reset(dst); }
 
         void reset(const void *dst, size_t size)
@@ -378,7 +378,7 @@ namespace detail {
             left = size;
         }
 
-        template<typename T>
+        template< typename T >
         void reset(const T* dst)
         {
             static_assert(std::is_pod<T>::value, "Type must be POD");

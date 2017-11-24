@@ -128,14 +128,14 @@ namespace ascii {
         };
 
 
-        template<typename T>
+        template< typename T >
         static constexpr bool from_decimal(const char* str,
                                            T* result = nullptr,
                                            LeadingZeros lz = LeadingZeros::Reject,
                                            NegativeZero nz = NegativeZero::Reject);
 
 
-        template<typename T>
+        template< typename T >
         class decimal {
         public:
             constexpr decimal() = default;
@@ -163,7 +163,7 @@ namespace ascii {
 
     // implementation
 
-    template<typename T>
+    template< typename T >
     constexpr bool integer::from_decimal(const char* str,
                                          T* result,
                                          LeadingZeros lz,
@@ -223,7 +223,7 @@ namespace ascii {
         return true;
     }
 
-    template<typename T>
+    template< typename T >
     constexpr integer::decimal<T>::decimal(T value)
     {
         char* p = d + MaxDataSize - 1;

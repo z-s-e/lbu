@@ -41,13 +41,13 @@ namespace algorithm {
     // - mirrored_index: basically one bit of the indices is used to mark if the
     //                   buffer is full or not
 
-    template<class SizeType>
+    template< class SizeType >
     SizeType continuous_slots(SizeType offset, SizeType count, SizeType n)
     {
         return std::min(count, n - offset);
     }
 
-    template<class SizeType>
+    template< class SizeType >
     class reserved_slot {
     public:
         static bool producer_has_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
@@ -113,7 +113,7 @@ namespace algorithm {
     };
 
 
-    template<class SizeType>
+    template< class SizeType >
     class mirrored_index {
     public:
         static bool producer_has_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
@@ -181,7 +181,7 @@ namespace algorithm {
         }
     };
 
-    template<class T, class SizeType>
+    template< class T, class SizeType >
     std::pair<array_ref<T>, array_ref<T>> ranges(T* begin, SizeType offset, SizeType available, SizeType n)
     {
         const auto first = algorithm::continuous_slots(offset, available, n);
@@ -193,7 +193,7 @@ namespace algorithm {
 
     template< class T,
               class SizeType = size_t,
-              class BufferAlg = algorithm::mirrored_index<SizeType>>
+              class BufferAlg = algorithm::mirrored_index<SizeType> >
     class handle {
     private:
         struct data {

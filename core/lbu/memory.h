@@ -33,7 +33,7 @@ namespace lbu {
         static_assert(sizeof(T) == sizeof(U), "size mismatch");
         static_assert(std::is_pod<T>::value && std::is_pod<U>::value, "only POD supported");
 
-        U result = {};
+        U result;
         std::memcpy(&result, &value, sizeof(result));
         return result;
     }
@@ -44,9 +44,9 @@ namespace lbu {
     {
         static_assert(std::is_pod<T>::value, "only POD supported");
 
-        T v = {};
-        std::memcpy(&v, src, sizeof(v));
-        return v;
+        T result;
+        std::memcpy(&result, src, sizeof(result));
+        return result;
     }
 
 
