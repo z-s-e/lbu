@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -31,7 +31,7 @@ namespace lbu {
 
         template< Function F >
         struct static_functor {
-            R operator()(Args... args) const { return F(std::forward<Args>(args)...); }
+            R operator()(Args... args) const { return F(args...); }
         };
 
         function_ptr() = default;
@@ -40,7 +40,7 @@ namespace lbu {
         bool is_valid() const { return function != nullptr; }
         explicit operator bool() const { return is_valid(); }
 
-        R operator()(Args... args) const { return (*function)(std::forward<Args>(args)...); }
+        R operator()(Args... args) const { return (*function)(args...); }
 
         Function function = {};
     };
@@ -53,7 +53,7 @@ namespace lbu {
         callback(Function fn, void* data = nullptr) : function(fn), userdata(data) {}
 
         explicit operator bool() const { return function != nullptr; }
-        void operator()(Args&&... args) const { (*function)(std::forward<Args>(args)..., userdata); }
+        void operator()(Args... args) const { (*function)(args..., userdata); }
 
         Function function = {};
         void* userdata = {};
@@ -62,19 +62,19 @@ namespace lbu {
         // convenience
 
         template< class T >
-        static void functor_dispatch(Args&&... args, void* userdata)
+        static void functor_dispatch(Args... args, void* userdata)
         {
             T* obj = static_cast<T*>(userdata);
-            (*obj)(std::forward<Args>(args)...);
+            (*obj)(args...);
         }
         template< class T >
         static callback functor_callback(T* functor) { return {functor_dispatch<T>, functor}; }
 
         template< class T, void(T::*Member)(Args...) >
-        static void member_dispatch(Args&&... args, void* userdata)
+        static void member_dispatch(Args... args, void* userdata)
         {
             T* obj = static_cast<T*>(userdata);
-            (obj->*Member)(std::forward<Args>(args)...);
+            (obj->*Member)(args...);
         }
         template< class T, void(T::*Member)(Args...) >
         static callback member_callback(T* object) { return {member_dispatch<T, Member>, object}; }
@@ -88,7 +88,7 @@ namespace lbu {
         callback_r(Function fn, void* data = nullptr) : function(fn), userdata(data) {}
 
         explicit operator bool() const { return function != nullptr; }
-        R operator()(Args&&... args) const { return (*function)(std::forward<Args>(args)..., userdata); }
+        R operator()(Args... args) const { return (*function)(args..., userdata); }
 
         Function function = {};
         void* userdata = {};
@@ -97,19 +97,19 @@ namespace lbu {
         // convenience
 
         template< class T >
-        static R functor_dispatch(Args&&... args, void* userdata)
+        static R functor_dispatch(Args... args, void* userdata)
         {
             T* obj = static_cast<T*>(userdata);
-            return (*obj)(std::forward<Args>(args)...);
+            return (*obj)(args...);
         }
         template< class T >
         static callback_r functor_callback(T* functor) { return {functor_dispatch<T>, functor}; }
 
         template< class T, R(T::*Member)(Args...) >
-        static R member_dispatch(Args&&... args, void* userdata)
+        static R member_dispatch(Args... args, void* userdata)
         {
             T* obj = static_cast<T*>(userdata);
-            return (obj->*Member)(std::forward<Args>(args)...);
+            return (obj->*Member)(args...);
         }
         template< class T, void(T::*Member)(Args...) >
         static callback_r member_callback(T* object) { return {member_dispatch<T, Member>, object}; }

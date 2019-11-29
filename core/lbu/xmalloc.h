@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -21,14 +21,14 @@
 #define LIBLBU_XMALLOC_H
 
 #include "lbu/array_ref.h"
-#include "lbu/lbu_global.h"
 
 #include <cassert>
-#include <cerrno>
 #include <cstring>
 #include <stdlib.h>
 
 namespace lbu {
+
+    // TODO: use owner<T> instead of T* when/if standardized
 
     template< typename T >
     T* xmalloc(size_t count)

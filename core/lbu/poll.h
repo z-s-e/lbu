@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -22,13 +22,15 @@
 
 #include "lbu/array_ref.h"
 #include "lbu/fd.h"
-#include "lbu/time.h"
 
 #include <cerrno>
+#include <chrono>
 #include <poll.h>
 
 namespace lbu {
 namespace poll {
+
+    static const std::chrono::milliseconds NoTimeout = std::chrono::milliseconds(-1);
 
     enum Flags {
         FlagsReadReady = POLLIN,
@@ -52,10 +54,10 @@ namespace poll {
     };
 
 
-    inline pollfd poll_fd(int filedes = -1, short flags = 0)
+    inline pollfd poll_fd(fd f = {}, short flags = 0)
     {
         pollfd d;
-        d.fd = filedes;
+        d.fd = f.value;
         d.events = flags;
         d.revents = 0;
         return d;
@@ -106,9 +108,9 @@ namespace poll {
             d.revents = 0;
         }
 
-        unique_pollfd(int filedes, int flags)
+        unique_pollfd(fd f, int flags)
         {
-            d.fd = filedes;
+            d.fd = f.value;
             d.events = flags;
             d.revents = 0;
         }
@@ -126,7 +128,7 @@ namespace poll {
 
         unique_pollfd& operator=(unique_pollfd&& other)
         {
-            reset_descriptor(other.d.fd);
+            reset_descriptor(other.descriptor());
             other.d.fd = -1;
             return *this;
         }
@@ -137,26 +139,26 @@ namespace poll {
                 ::close(d.fd);
         }
 
-        int descriptor() const { return d.fd; }
+        fd descriptor() const { return fd(d.fd); }
 
-        void reset_descriptor(int fd)
+        void reset_descriptor(fd f)
         {
-            if( d.fd >= 0 )
-                ::close(d.fd);
-            d.fd = fd;
+            if( descriptor() )
+                descriptor().close();
+            d.fd = f.value;
         }
 
-        int release_descriptor()
+        fd release_descriptor()
         {
-            int fd = d.fd;
+            fd f(d.fd);
             d.fd = -1;
-            return fd;
+            return f;
         }
 
         short flags() const { return d.events; }
         void set_flags(short flags) { d.events = flags; }
 
-        void reset(int filedes, short flags) { reset_descriptor(filedes); set_flags(flags); }
+        void reset(fd f, short flags) { reset_descriptor(f); set_flags(flags); }
 
         bool has_events() const { return d.revents != 0; }
         short events() const { return d.revents; }
@@ -176,9 +178,6 @@ namespace poll {
         swap(lhs.d.events, rhs.d.events);
         swap(lhs.d.revents, rhs.d.revents);
     }
-
-
-    static const std::chrono::milliseconds NoTimeout = std::chrono::milliseconds(-1);
 
 
     inline int poll(pollfd* fds, nfds_t nfds, int* count,
@@ -213,8 +212,10 @@ namespace poll {
                      std::chrono::nanoseconds timeout,
                      const sigset_t* sigmask = nullptr)
     {
-        const auto t = time::duration_to_timespec(timeout);
-        return ppoll(fds, nfds, count, &t, sigmask);
+        struct timespec ts;
+        ts.tv_nsec = timeout.count() % std::nano::den;
+        ts.tv_sec = timeout.count() / std::nano::den;
+        return ppoll(fds, nfds, count, &ts, sigmask);
     }
 
     inline int ppoll(array_ref<pollfd> fds, int* count,
@@ -223,9 +224,9 @@ namespace poll {
         return ppoll(fds.data(), fds.size(), count, timeout, sigmask);
     }
 
-    inline bool wait_for_event(int filedes, short flags)
+    inline bool wait_for_event(fd f, short flags)
     {
-        auto p = poll_fd(filedes, flags);
+        auto p = poll_fd(f, flags);
         while( true ) {
             int c = ::poll(&p, 1, NoTimeout.count());
             if( c == 1 )

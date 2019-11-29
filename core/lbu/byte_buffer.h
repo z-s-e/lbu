@@ -1,4 +1,4 @@
-/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -108,13 +108,13 @@ namespace lbu {
 
         static constexpr unsigned SmallResered = sizeof(external_data) - 1;
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-        static constexpr unsigned char SmallFlag = 1;
+        static constexpr uint8_t SmallFlag = 1;
 #else
-        static constexpr unsigned char SmallFlag = 1 << 7;
+        static constexpr uint8_t SmallFlag = 1 << 7;
 #endif
 
         struct small_data {
-            unsigned char size = SmallFlag;
+            uint8_t size = SmallFlag;
             char data[SmallResered];
         };
         static_assert(sizeof(small_data) == sizeof(external_data), "bug");

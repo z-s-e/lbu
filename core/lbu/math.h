@@ -1,4 +1,4 @@
-/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -34,8 +34,8 @@ namespace lbu {
     constexpr typename std::make_unsigned<IntType>::type abs(IntType val)
     {
         static_assert(std::is_integral<IntType>::value, "Need int type");
-        static_assert(!std::is_signed<IntType>::value ||
-                      (std::numeric_limits<IntType>::max() + std::numeric_limits<IntType>::min() >= IntType(-1)), "Unsupported signed type");
+        static_assert(std::is_unsigned<IntType>::value
+                      || (std::numeric_limits<IntType>::max() + std::numeric_limits<IntType>::min() >= IntType(-1)), "Unsupported type");
         return val < 0 ? typename std::make_unsigned<IntType>::type(-(val + 1)) + 1 : val;
     }
 
@@ -142,7 +142,7 @@ namespace lbu {
         ExpType expTmp = exp;
         BaseType result = 1;
         while( expTmp ) {
-            if (expTmp & 1)
+            if( expTmp & 1 )
                 result *= absBase;
             expTmp >>= 1;
             absBase *= absBase;

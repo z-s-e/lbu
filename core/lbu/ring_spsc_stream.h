@@ -1,4 +1,4 @@
-/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -21,6 +21,7 @@
 #define LIBLBU_RING_SPSC_STREAM_H
 
 #include "lbu/abstract_stream.h"
+#include "lbu/fd.h"
 
 #include <atomic>
 
@@ -36,7 +37,7 @@ namespace stream {
             , eos(false)
         {}
 
-        LIBLBU_EXPORT static bool open_event_fd(int* event_fd);
+        LIBLBU_EXPORT static int open_event_fd(fd* event_fd);
 
         std::atomic<uint32_t> producer_index;
         std::atomic<uint32_t> consumer_index;
@@ -52,7 +53,7 @@ namespace stream {
             uint32_t ringSize = 0;
             uint32_t segmentLimit = DefaultRingSegmentLimit;
             uint32_t lastIndex = 0;
-            int fd = -1;
+            fd filedes = {};
         };
 
     public:
@@ -62,7 +63,7 @@ namespace stream {
         class input_stream : public abstract_input_stream {
         public:
             LIBLBU_EXPORT input_stream();
-            input_stream(array_ref<void> buffer, int event_fd, ring_spsc_shared_data* s)
+            input_stream(array_ref<void> buffer, fd event_fd, ring_spsc_shared_data* s)
                 : input_stream()
             {
                 reset(buffer, event_fd, s);
@@ -70,7 +71,7 @@ namespace stream {
 
             LIBLBU_EXPORT ~input_stream() override;
 
-            LIBLBU_EXPORT void reset(array_ref<void> buffer, int event_fd, ring_spsc_shared_data* s);
+            LIBLBU_EXPORT void reset(array_ref<void> buffer, fd event_fd, ring_spsc_shared_data* s);
 
             uint32_t segment_size_limit() const { return d.segmentLimit; }
             void set_segment_size_limit(uint32_t limit)
@@ -78,7 +79,7 @@ namespace stream {
                 d.segmentLimit = limit > 0 ? limit : 1;
             }
 
-            int event_fd() const { return d.fd; }
+            fd event_fd() const { return d.filedes; }
 
         protected:
             LIBLBU_EXPORT ssize_t read_stream(array_ref<io::io_vector> buf_array, size_t required_read) override;
@@ -99,7 +100,7 @@ namespace stream {
         class output_stream : public abstract_output_stream {
         public:
             LIBLBU_EXPORT output_stream();
-            output_stream(array_ref<void> buffer, int event_fd, ring_spsc_shared_data* s)
+            output_stream(array_ref<void> buffer, fd event_fd, ring_spsc_shared_data* s)
                 : output_stream()
             {
                 reset(buffer, event_fd, s);
@@ -109,7 +110,7 @@ namespace stream {
 
             LIBLBU_EXPORT bool set_end_of_stream();
 
-            LIBLBU_EXPORT void reset(array_ref<void> buffer, int event_fd, ring_spsc_shared_data* s);
+            LIBLBU_EXPORT void reset(array_ref<void> buffer, fd event_fd, ring_spsc_shared_data* s);
 
             uint32_t segment_size_limit() const { return d.segmentLimit; }
             void set_segment_size_limit(uint32_t limit)
@@ -117,7 +118,7 @@ namespace stream {
                 d.segmentLimit = limit > 0 ? limit : 1;
             }
 
-            int event_fd() const { return d.fd; }
+            fd event_fd() const { return d.filedes; }
 
         protected:
             LIBLBU_EXPORT ssize_t write_stream(array_ref<io::io_vector> buf_array, Mode mode) override;
@@ -139,7 +140,7 @@ namespace stream {
         static void pair_streams(output_stream* out,
                                  input_stream* in,
                                  array_ref<void> buffer,
-                                 int event_fd,
+                                 fd event_fd,
                                  ring_spsc_shared_data* s,
                                  uint32_t segment_limit = DefaultRingSegmentLimit)
         {

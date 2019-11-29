@@ -23,3 +23,17 @@ This library is in a very early stage; lots of functionality, documentation
 and tests are still missing.
  
 **The API is not stable yet!**
+
+
+## Design notes
+
+ * the various *Status enums (such as io::ReadStatus) are ment to be a reasonable
+   set of common errors to check for, excluding some more esoteric possible
+   errors. To indicate that these enums are not exhaustive, functions like
+   io::read() still return an int instead of the enum.
+ * xmalloc and friends still return a raw pointer instead of unique_cpod, because
+   all situations in the code that use it are managing the lifetime on their own.
+   To me xmalloc appears to be primairly useful for creating such custom wrappers
+   that don't need the automatic lifetime handling anyway, so unless this changes
+   I'll leave it like this. Besides, this might be the more expected behavior of
+   functions with that name, and adding a unique_cpod around it is trivial.

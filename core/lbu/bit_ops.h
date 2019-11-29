@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -17,30 +17,35 @@
  * <http://www.gnu.org/licenses/>.
  */
 
-#ifndef LIBLBU_TIME_H
-#define LIBLBU_TIME_H
+#ifndef LIBLBU_BIT_OPS_H
+#define LIBLBU_BIT_OPS_H
 
-#include <chrono>
-#include <time.h>
+#include "lbu/array_ref.h"
+
+#include <type_traits>
 
 namespace lbu {
-namespace time {
+namespace bit_ops {
 
-    inline struct timespec duration_to_timespec(std::chrono::nanoseconds ns)
+    template< typename IntType >
+    constexpr IntType flag_set(IntType old_flags, IntType flag, bool value)
     {
-        struct timespec ts;
-        ts.tv_nsec = ns.count() % std::nano::den;
-        ts.tv_sec = ns.count() / std::nano::den;
-        return ts;
+        static_assert(std::is_integral<IntType>::value, "Need int type");
+        if( value )
+            return old_flags | flag;
+        else
+            return old_flags & (~flag);
     }
 
-    inline std::chrono::nanoseconds timespec_to_duration(struct timespec ts)
+    template< typename IntType >
+    constexpr bool flag_get(IntType flags, IntType flag)
     {
-        return std::chrono::nanoseconds(std::chrono::nanoseconds::rep(ts.tv_sec) * std::nano::den + ts.tv_nsec);
+        static_assert(std::is_integral<IntType>::value, "Need int type");
+        return (flags & flag) != 0;
     }
 
-} // namespace time
+} // namespace bit_ops
 } // namespace lbu
 
-#endif // LIBLBU_TIME_H
+#endif // LIBLBU_BIT_OPS_H
 

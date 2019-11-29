@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -21,6 +21,7 @@
 #define LIBLBU_IO_H
 
 #include "lbu/array_ref.h"
+#include "lbu/fd.h"
 
 #include <cerrno>
 #include <unistd.h>
@@ -111,22 +112,22 @@ namespace io {
         ReadIsDir = EISDIR
     };
 
-    inline int read(int filedes, array_ref<void> buffer, ssize_t* result)
+    inline int read(fd f, array_ref<void> buffer, ssize_t* result)
     {
-        return temp_fail_retry<int, void*, size_t>::apply<::read>(filedes, buffer.data(), buffer.byte_size(), result);
+        return temp_fail_retry<int, void*, size_t>::apply<::read>(f.value, buffer.data(), buffer.byte_size(), result);
     }
 
-    inline int readv(int filedes, array_ref<const io_vector> iov, ssize_t* result)
+    inline int readv(fd f, array_ref<const io_vector> iov, ssize_t* result)
     {
-        return temp_fail_retry<int, const io_vector*, int>::apply<::readv>(filedes, iov.data(), iov.size(), result);
+        return temp_fail_retry<int, const io_vector*, int>::apply<::readv>(f.value, iov.data(), iov.size(), result);
     }
 
     // Reading past the end of stream is treated as an IOError
-    inline int read_all(int filedes, array_ref<void> buffer)
+    inline int read_all(fd f, array_ref<void> buffer)
     {
         auto buf = buffer.array_static_cast<char>();
         while( buf.size() > 0 ) {
-            const auto r = ::read(filedes, buf.data(), buf.size());
+            const auto r = ::read(f.value, buf.data(), buf.size());
             if( r > 0 ) {
                 buf = buf.sub(size_t(r));
                 continue;
@@ -154,21 +155,21 @@ namespace io {
         WriteBadRequest = EINVAL
     };
 
-    inline int write(int filedes, array_ref<const void> buffer, ssize_t* result)
+    inline int write(fd f, array_ref<const void> buffer, ssize_t* result)
     {
-        return temp_fail_retry<int, const void*, size_t>::apply<::write>(filedes, buffer.data(), buffer.byte_size(), result);
+        return temp_fail_retry<int, const void*, size_t>::apply<::write>(f.value, buffer.data(), buffer.byte_size(), result);
     }
 
-    inline int writev(int filedes, array_ref<const io_vector> iov, ssize_t* result)
+    inline int writev(fd f, array_ref<const io_vector> iov, ssize_t* result)
     {
-        return temp_fail_retry<int, const io_vector*, int>::apply<::writev>(filedes, iov.data(), iov.size(), result);
+        return temp_fail_retry<int, const io_vector*, int>::apply<::writev>(f.value, iov.data(), iov.size(), result);
     }
 
-    inline int write_all(int filedes, array_ref<const void> buffer)
+    inline int write_all(fd f, array_ref<const void> buffer)
     {
         auto buf = buffer.array_static_cast<char>();
         while( buf.size() > 0 ) {
-            const auto r = ::write(filedes, buf.data(), buf.size());
+            const auto r = ::write(f.value, buf.data(), buf.size());
             if( r > 0 ) {
                 buf = buf.sub(size_t(r));
                 continue;

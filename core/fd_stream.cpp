@@ -1,4 +1,4 @@
-/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -28,16 +28,18 @@ namespace lbu {
 namespace stream {
 
 
-static inline void update_blocking(Mode mode, FdBlockingState *block, int fd)
+static inline void update_blocking(Mode mode, FdBlockingState *block, fd f)
 {
+    // Ignore possible errors from setting nonblock, because if there is an
+    // error, the following read/write operations should fail as well.
     if( mode == Mode::Blocking ) {
         if( *block != FdBlockingState::Blocking ) {
-            if( fd::set_nonblock(fd, false) )
+            if( f.set_nonblock(false) )
                 *block = FdBlockingState::Blocking;
         }
     } else {
         if( *block != FdBlockingState::NonBlocking ) {
-            if( fd::set_nonblock(fd, true) )
+            if( f.set_nonblock(true) )
                 *block = FdBlockingState::NonBlocking;
         }
     }
@@ -45,22 +47,22 @@ static inline void update_blocking(Mode mode, FdBlockingState *block, int fd)
 
 
 fd_input_stream::fd_input_stream(array_ref<void> buffer,
-                                 int filedes,
+                                 fd f,
                                  FdBlockingState b)
     : abstract_input_stream(buffer ? InternalBuffer::Yes : InternalBuffer::No)
 {
     bufferBase = static_cast<char*>(buffer.data());
     bufferCapacity = std::min(buffer.byte_size(), size_t(std::numeric_limits<uint32_t>::max()));
-    set_descriptor(filedes, b);
+    set_descriptor(f, b);
 }
 
 fd_input_stream::~fd_input_stream()
 {
 }
 
-void fd_input_stream::set_descriptor(int filedes, FdBlockingState b)
+void fd_input_stream::set_descriptor(fd f, FdBlockingState b)
 {
-    fd = filedes;
+    filedes = f;
     fdBlocking = b;
     err = io::ReadNoError;
     bufferAvailable = 0;
@@ -74,7 +76,7 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
         return -1;
 
     const Mode mode = (required_read > 0) ? Mode::Blocking : Mode::NonBlocking;
-    update_blocking(mode, &fdBlocking, fd);
+    update_blocking(mode, &fdBlocking, filedes);
 
     io::io_vector internalArray[2];
     uint32_t bufferRead = 0;
@@ -117,7 +119,7 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
     size_t count = 0;
     while( true ) {
         ssize_t r;
-        int e = io::readv(fd, buf_array, &r);
+        int e = io::readv(filedes, buf_array, &r);
         if( r > 0 ) {
             count += size_t(r);
 
@@ -162,10 +164,10 @@ array_ref<const void> fd_input_stream::get_read_buffer(Mode mode)
 {
     if( has_error() )
         return {};
-    update_blocking(mode, &fdBlocking, fd);
+    update_blocking(mode, &fdBlocking, filedes);
 
     ssize_t r;
-    int e = io::read(fd, array_ref<char>(bufferBase, bufferCapacity), &r);
+    int e = io::read(filedes, array_ref<char>(bufferBase, bufferCapacity), &r);
     if( r > 0 ) {
         bufferOffset = 0;
         bufferAvailable = uint32_t(r);
@@ -182,26 +184,26 @@ array_ref<const void> fd_input_stream::get_read_buffer(Mode mode)
 }
 
 fd_output_stream::fd_output_stream(array_ref<void> buffer,
-                                   int filedes,
+                                   fd f,
                                    FdBlockingState b)
     : abstract_output_stream(buffer ? InternalBuffer::Yes : InternalBuffer::No)
 {
     bufferBase = static_cast<char*>(buffer.data());
     bufferCapacity = std::min(buffer.byte_size(), size_t(std::numeric_limits<uint32_t>::max()));
-    set_descriptor(filedes, b);
+    set_descriptor(f, b);
 }
 
 fd_output_stream::~fd_output_stream()
 {
 }
 
-void fd_output_stream::set_descriptor(int filedes, FdBlockingState b)
+void fd_output_stream::set_descriptor(fd f, FdBlockingState b)
 {
-    fd = filedes;
+    filedes = f;
     fdBlocking = b;
     err = io::WriteNoError;
     reset_buffer();
-    if( fd < 0 )
+    if( ! f )
         bufferAvailable = 0;
 }
 
@@ -225,7 +227,7 @@ ssize_t fd_output_stream::write_fd(array_ref<io::io_vector> buf_array, Mode mode
 {
     if( has_error() )
         return -1;
-    update_blocking(mode, &fdBlocking, fd);
+    update_blocking(mode, &fdBlocking, filedes);
 
     io::io_vector internalArray[2];
     uint32_t internalWriteSize = 0;
@@ -248,7 +250,7 @@ ssize_t fd_output_stream::write_fd(array_ref<io::io_vector> buf_array, Mode mode
 
         while( count < sum ) {
             ssize_t r;
-            int e = io::writev(fd, buf_array, &r);
+            int e = io::writev(filedes, buf_array, &r);
             if( r < 0 ) {
                 statusFlags = StatusError;
                 err = e;
@@ -265,7 +267,7 @@ ssize_t fd_output_stream::write_fd(array_ref<io::io_vector> buf_array, Mode mode
         return sum - internalWriteSize;
     } else {
         ssize_t r;
-        int e = io::writev(fd, buf_array, &r);
+        int e = io::writev(filedes, buf_array, &r);
         if( r >= 0 ) {
             if( r >= internalWriteSize ) {
                 if( manages_buffer() )
@@ -316,19 +318,19 @@ socket_stream_pair::socket_stream_pair(uint32_t bufsize_read, uint32_t bufsize_w
 
 socket_stream_pair::~socket_stream_pair()
 {
-    if( in.descriptor() >= 0 )
-        ::close(in.descriptor());
+    if( in.descriptor() )
+        in.descriptor().close();
     ::free(in.buffer_base());
     ::free(out.buffer_base());
 }
 
-fd::unique_fd socket_stream_pair::take_reset(fd::unique_fd filedes, FdBlockingState b)
+unique_fd socket_stream_pair::take_reset(unique_fd f, FdBlockingState b)
 {
-    int old = in.descriptor();
-    int fd = filedes.release();
-    in.set_descriptor(fd, b);
-    out.set_descriptor(fd, b);
-    return fd::unique_fd(old);
+    fd oldfd = in.descriptor();
+    fd newfd = f.release();
+    in.set_descriptor(newfd, b);
+    out.set_descriptor(newfd, b);
+    return unique_fd(oldfd);
 }
 
 
@@ -339,16 +341,16 @@ managed_fd_output_stream::managed_fd_output_stream(uint32_t bufsize)
 
 managed_fd_output_stream::~managed_fd_output_stream()
 {
-    if( out.descriptor() >= 0 )
-        ::close(out.descriptor());
+    if( out.descriptor() )
+        out.descriptor().close();
     ::free(out.buffer_base());
 }
 
-void managed_fd_output_stream::reset(fd::unique_fd filedes, FdBlockingState b)
+void managed_fd_output_stream::reset(unique_fd f, FdBlockingState b)
 {
-    if( out.descriptor() >= 0 )
-        ::close(out.descriptor());
-    out.set_descriptor(filedes.release(), b);
+    if( out.descriptor() )
+        out.descriptor().close();
+    out.set_descriptor(f.release(), b);
 }
 
 
@@ -359,16 +361,16 @@ managed_fd_input_stream::managed_fd_input_stream(uint32_t bufsize)
 
 managed_fd_input_stream::~managed_fd_input_stream()
 {
-    if( in.descriptor() >= 0 )
-        ::close(in.descriptor());
+    if( in.descriptor() )
+        in.descriptor().close();
     ::free(in.buffer_base());
 }
 
-void managed_fd_input_stream::reset(fd::unique_fd filedes, FdBlockingState b)
+void managed_fd_input_stream::reset(unique_fd f, FdBlockingState b)
 {
-    if( in.descriptor() >= 0 )
-        ::close(in.descriptor());
-    in.set_descriptor(filedes.release(), b);
+    if( in.descriptor() )
+        in.descriptor().close();
+    in.set_descriptor(f.release(), b);
 }
 
 } // namespace stream

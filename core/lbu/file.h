@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -20,12 +20,18 @@
 #ifndef LIBLBU_FILE_H
 #define LIBLBU_FILE_H
 
+#include "lbu/fd.h"
+
+#include <cassert>
 #include <cerrno>
 #include <fcntl.h>
+#include <limits>
 #include <unistd.h>
 
 namespace lbu {
 namespace file {
+
+    static constexpr uint64_t MaximumFileSize = std::numeric_limits<int64_t>::max();
 
     enum AccessFlags {
         AccessRead = O_RDONLY,
@@ -77,13 +83,13 @@ namespace file {
         OpenWouldBlock = EWOULDBLOCK
     };
 
-    inline int open(int* filedes, const char *pathname, int flags, int mode = (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP))
+    inline int open(fd* f, const char *pathname, int flags, int mode = (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP))
     {
-        int fd;
+        int filedes;
         while( true ) {
-            fd = ::open(pathname, flags, mode);
-            *filedes = fd;
-            if( fd >= 0 )
+            filedes = ::open(pathname, flags, mode);
+            f->value = filedes;
+            if( filedes >= 0 )
                 return OpenNoError;
             if( errno == EINTR )
                 continue;
@@ -106,16 +112,17 @@ namespace file {
         SeekUnsupported = ESPIPE
     };
 
-    inline int seek(int filedes, off_t offset, SeekOrigin whence = SeekOrigin::CurrentPosition)
+    inline int seek(fd f, off_t offset, SeekOrigin whence = SeekOrigin::CurrentPosition)
     {
-        if( ::lseek(filedes, offset, static_cast<int>(whence)) == off_t(-1) )
+        if( ::lseek(f.value, offset, static_cast<int>(whence)) == off_t(-1) )
             return errno;
         return SeekNoError;
     }
 
-    inline int seek(int filedes, off_t offset, off_t* result, SeekOrigin whence = SeekOrigin::CurrentPosition)
+    inline int seek(fd f, off_t offset, off_t* result, SeekOrigin whence = SeekOrigin::CurrentPosition)
     {
-        *result = ::lseek(filedes, offset, static_cast<int>(whence));
+        assert(result != nullptr);
+        *result = ::lseek(f.value, offset, static_cast<int>(whence));
         if( *result == off_t(-1) )
             return errno;
         return SeekNoError;

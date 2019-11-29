@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -20,25 +20,70 @@
 #ifndef LIBLBU_FD_H
 #define LIBLBU_FD_H
 
+#include "lbu/bit_ops.h"
+
 #include <cerrno>
 #include <fcntl.h>
 #include <unistd.h>
 #include <utility>
 
 namespace lbu {
-namespace fd {
+
+    struct fd {
+        fd() = default; // default copy ctor/assignment ok
+        explicit fd(int filedes) : value(filedes) {}
+
+        explicit operator bool() const { return value > -1; }
+
+        int value = -1;
+
+        void close()
+        {
+            int c = ::close(value);
+            assert(c == 0 || errno != EBADF);
+        }
+
+        inline bool is_nonblock()
+        {
+            int f = fcntl(value, F_GETFL, 0);
+            return (f >= 0) && (f & O_NONBLOCK);
+        }
+
+        inline bool set_nonblock(bool value)
+        {
+            int oldflags = fcntl(value, F_GETFL, 0);
+            if( oldflags == -1 )
+                return false;
+            return fcntl(value, F_SETFL, bit_ops::flag_set(oldflags, O_NONBLOCK, value)) != -1;
+        }
+
+        inline bool is_cloexec()
+        {
+            int f = fcntl(value, F_GETFD, 0);
+            return (f >= 0) && (f & FD_CLOEXEC);
+        }
+
+        inline bool set_cloexec(bool value)
+        {
+            int oldflags = fcntl(value, F_GETFD, 0);
+            if( oldflags == -1 )
+                return false;
+            return fcntl(value, F_SETFD, bit_ops::flag_set(oldflags, FD_CLOEXEC, value)) != -1;
+        }
+    };
 
     /// unique_ptr like handle to file descriptors
     class unique_fd {
     public:
         unique_fd() = default;
-        explicit unique_fd(int filedes) : fd(filedes) {}
+        explicit unique_fd(fd f) : data(f) {}
+        explicit unique_fd(int fildes) : data(fildes) {}
         unique_fd(std::nullptr_t) {}
 
         unique_fd(unique_fd&& u)
         {
-            reset(u.fd);
-            u.fd = -1;
+            reset(u.data);
+            u.data = {};
         }
 
         ~unique_fd() { reset(); }
@@ -51,81 +96,42 @@ namespace fd {
 
         unique_fd& operator=(unique_fd&& u)
         {
-            reset(u.fd);
-            u.fd = -1;
+            reset(u.data);
+            u.data = {};
             return *this;
         }
 
-        explicit operator bool() const { return fd > -1; }
+        explicit operator bool() const { return bool(data); }
 
-        int get() const { return fd; }
-        int operator*() const { return get(); }
+        fd get() const { return data; }
+        fd operator*() const { return get(); }
 
-        int release()
+        fd release()
         {
-            int filedes = fd;
-            fd = -1;
-            return filedes;
+            fd f = data;
+            data = {};
+            return f;
         }
 
-        void reset(int filedes = -1)
+        void reset(fd f = {})
         {
-            if( fd > -1 )
-                ::close(fd);
-            fd = filedes;
+            if( data )
+                data.close();
+            data = f;
         }
 
         void swap(unique_fd& u)
         {
-            std::swap(fd, u.fd);
+            std::swap(data.value, u.data.value);
         }
 
         unique_fd(const unique_fd&) = delete;
         unique_fd& operator=(const unique_fd&) = delete;
 
     private:
-        int fd = -1;
+        fd data;
     };
 
-
-    inline bool is_cloexec(int filedes)
-    {
-        int f = fcntl(filedes, F_GETFD, 0);
-        return (f >= 0) && (f & FD_CLOEXEC);
-    }
-
-    inline bool set_cloexec(int filedes, bool value)
-    {
-        int oldflags = fcntl(filedes, F_GETFD, 0);
-        if( oldflags == -1 )
-            return false;
-        if( value )
-            oldflags |= FD_CLOEXEC;
-        else
-            oldflags &= ~FD_CLOEXEC;
-        return fcntl(filedes, F_SETFD, oldflags) != -1;
-    }
-
-
-    inline bool is_nonblock(int filedes)
-    {
-        int f = fcntl(filedes, F_GETFL, 0);
-        return (f >= 0) && (f & O_NONBLOCK);
-    }
-
-    inline bool set_nonblock(int filedes, bool value)
-    {
-        int oldflags = fcntl(filedes, F_GETFL, 0);
-        if( oldflags == -1 )
-            return false;
-        if( value )
-            oldflags |= O_NONBLOCK;
-        else
-            oldflags &= ~O_NONBLOCK;
-        return fcntl(filedes, F_SETFL, oldflags) != -1;
-    }
-
-} // namespace fd
 } // namespace lbu
 
 #endif // LIBLBU_FD_H

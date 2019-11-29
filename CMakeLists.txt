@@ -3,17 +3,21 @@ project(lbu)
 
 set(LIBLBU_VERSION_MAJOR 0)
 set(LIBLBU_VERSION_MINOR 1)
-set(LIBLBU_VERSION_PATCH 7)
+set(LIBLBU_VERSION_PATCH 8)
 set(LIBLBU_VERSION "${LIBLBU_VERSION_MAJOR}.${LIBLBU_VERSION_MINOR}.${LIBLBU_VERSION_PATCH}")
 
 option(LBU_BUILD_STATIC "Build lbu as a static library" OFF)
 option(LBU_BUILD_ALSA "Build lbu alsa library" ON)
 
-set(LIB_INSTALL_DIR lib)
-set(LIB_STATIC_INSTALL_DIR lib/static)
-set(CMAKECONFIG_INSTALL_DIR lib/cmake/${PROJECT_NAME})
-set(INCLUDE_IMPORT_DIR include)
+set(CPP_VERSION 17)
+
+include(GNUInstallDirs)
+set(LIB_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR})
+set(LIB_STATIC_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/static)
+set(CMAKECONFIG_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
+set(INCLUDE_IMPORT_DIR ${CMAKE_INSTALL_INCLUDEDIR})
 set(INCLUDE_INSTALL_DIR ${INCLUDE_IMPORT_DIR}/${PROJECT_NAME})
+
 find_package(PkgConfig REQUIRED)
 
 
@@ -35,6 +39,7 @@ set(lbu_core_src
     core/align.cpp
     core/array_ref.cpp
     core/ascii.cpp
+    core/bit_ops.cpp
     core/buffer_stream.cpp
     core/byte_buffer.cpp
     core/c_function.cpp
@@ -51,7 +56,6 @@ set(lbu_core_src
     core/poll.cpp
     core/ring_spsc.cpp
     core/ring_spsc_stream.cpp
-    core/time.cpp
     core/xmalloc.cpp
 )
 set(lbu_core_hdr
@@ -59,6 +63,7 @@ set(lbu_core_hdr
     core/lbu/align.h
     core/lbu/array_ref.h
     core/lbu/ascii.h
+    core/lbu/bit_ops.h
     core/lbu/buffer_stream.h
     core/lbu/byte_buffer.h
     core/lbu/c_function.h
@@ -74,7 +79,6 @@ set(lbu_core_hdr
     core/lbu/poll.h
     core/lbu/ring_spsc.h
     core/lbu/ring_spsc_stream.h
-    core/lbu/time.h
     core/lbu/xmalloc.h
 )
 
@@ -98,7 +102,7 @@ set_property(TARGET lbu_core
              ${lbu_core_hdr}
              ${CMAKE_CURRENT_BINARY_DIR}/include/lbu/lbu_global.h)
 
-set_property(TARGET lbu_core PROPERTY CXX_STANDARD 14)
+set_property(TARGET lbu_core PROPERTY CXX_STANDARD ${CPP_VERSION})
 set_property(TARGET lbu_core PROPERTY CXX_STANDARD_REQUIRED 1)
 
 target_include_directories(lbu_core PUBLIC
@@ -136,7 +140,7 @@ if(LBU_BUILD_ALSA)
                 PROPERTY PUBLIC_HEADER
                 ${lbu_alsa_hdr})
 
-    set_property(TARGET lbu_alsa PROPERTY CXX_STANDARD 14)
+    set_property(TARGET lbu_alsa PROPERTY CXX_STANDARD ${CPP_VERSION})
     set_property(TARGET lbu_alsa PROPERTY CXX_STANDARD_REQUIRED 1)
 
     pkg_search_module(LIB_ALSA REQUIRED alsa)
@@ -156,8 +160,24 @@ endif()
 
 # --- TESTS
 
-enable_testing()
-add_subdirectory(tests)
+find_package(Qt5 COMPONENTS Core Test QUIET)
+
+if(Qt5Core_FOUND)
+  enable_testing()
+  set(CMAKE_AUTOMOC ON)
+  set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+  add_executable(bench_stream tests/bench/bench_stream.cpp)
+  target_link_libraries(bench_stream lbu_core Qt5::Core Qt5::Test)
+  target_compile_definitions(bench_stream PRIVATE BENCH_RING_ADDITIONAL)
+  set_property(TARGET bench_stream PROPERTY CXX_STANDARD ${CPP_VERSION})
+
+  add_executable(test_byte_buffer tests/auto/test_byte_buffer.cpp)
+  target_link_libraries(test_byte_buffer lbu_core Qt5::Core Qt5::Test)
+  set_property(TARGET test_byte_buffer PROPERTY CXX_STANDARD ${CPP_VERSION})
+  add_test(NAME test_byte_buffer COMMAND test_byte_buffer)
+endif()
+
 
 # --- CMAKE INSTALL
 

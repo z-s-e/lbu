@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -60,7 +60,10 @@ namespace lbu {
 
     using unique_ptr_raw = unique_ptr_c<void, ::free>;
 
-    using unique_cstr = std::unique_ptr<char, static_cleanup_function<void*, ::free> >;
+    template< typename T >
+    using unique_cpod = std::unique_ptr<T, static_cleanup_function<void*, ::free> >;
+
+    using unique_cstr = unique_cpod<char>;
 
 } // namespace lbu
 

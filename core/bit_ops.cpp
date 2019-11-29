@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -17,4 +17,4 @@
  * <http://www.gnu.org/licenses/>.
  */
 
-#include "lbu/time.h"
+#include "lbu/bit_ops.h"

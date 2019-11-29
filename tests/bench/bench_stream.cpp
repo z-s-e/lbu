@@ -39,7 +39,7 @@ static int s_result = 0;
 
 static std::array<int, s_chunk_size> s_read_buffer;
 static std::array<int, 1024*16> s_ring_buffer;
-static const unsigned s_ring_chunk_size = s_ring_buffer.size() / 4;
+static const unsigned s_ring_chunk_size = s_chunk_size;//s_ring_buffer.size() / 4;
 static std::array<int, s_chunk_size> s_write_buffer;
 static std::atomic<size_t> s_producerIdx;
 static std::atomic<size_t> s_consumerIdx;
@@ -53,7 +53,7 @@ class QtFdDev : public QIODevice {
 
 public:
     QtFdDev(int fd) : m_fd(fd) {}
-    ~QtFdDev() { ::close(m_fd); }
+    ~QtFdDev() { m_fd.close(); }
 
     bool isSequential() const { return true; }
 
@@ -75,7 +75,7 @@ protected:
     }
 
 private:
-    int m_fd;
+    lbu::fd m_fd;
 };
 
 
@@ -242,7 +242,7 @@ class Thread_FdStream : public QThread {
 public:
     Thread_FdStream(int fd)
     {
-        m_stream.reset(lbu::fd::unique_fd(fd), lbu::stream::FdBlockingState::Blocking);
+        m_stream.reset(lbu::unique_fd(fd), lbu::stream::FdBlockingState::Blocking);
     }
 };
 
@@ -298,7 +298,7 @@ class Thread_RingBlockFd : public QThread {
     void run() override
     {
         unsigned processed = 0;
-        const int fd = m_poll.fd;
+        const lbu::fd f(m_poll.fd);
         eventfd_t unused;
 
         while( processed < s_transfer_size ) {
@@ -320,13 +320,13 @@ class Thread_RingBlockFd : public QThread {
 
             processed += r.size();
             consumer.release(r.size());
-            lbu::event_fd::read(fd, &unused);
+            lbu::event_fd::read(f, &unused);
         }
     }
     pollfd m_poll;
 public:
-    Thread_RingBlockFd(int fd)
-        : m_poll(lbu::poll::poll_fd(fd, lbu::poll::FlagsReadReady))
+    Thread_RingBlockFd(lbu::fd f)
+        : m_poll(lbu::poll::poll_fd(f, lbu::poll::FlagsReadReady))
     {
     }
     lbu::ring_spsc::handle<int>::consumer consumer;
@@ -390,11 +390,11 @@ class BenchStream : public QObject
 private Q_SLOTS:
     void RawIO()
     {
-        int readFd = -1, writeFd = -1;
+        lbu::fd readFd = {}, writeFd = {};
         QVERIFY(lbu::pipe::open(&readFd, &writeFd) == lbu::pipe::StatusNoError);
         const auto buf = lbu::array_ref<int>(s_write_buffer);
 
-        Thread_RawIO t(readFd);
+        Thread_RawIO t(readFd.value);
         QBENCHMARK {
             s_result = 0;
             t.start();
@@ -411,18 +411,18 @@ private Q_SLOTS:
             t.wait();
         }
 
-        close(writeFd);
+        writeFd.close();
         QCOMPARE(s_result, s_expected);
     }
 
     void FILE_io()
     {
-        int readFd = -1, writeFd = -1;
+        lbu::fd readFd = {}, writeFd = {};
         QVERIFY(lbu::pipe::open(&readFd, &writeFd) == lbu::pipe::StatusNoError);
-        FILE* pipe_out = fdopen(writeFd, "w");
+        FILE* pipe_out = fdopen(writeFd.value, "w");
         QVERIFY(pipe_out);
 
-        Thread_FILE t(readFd);
+        Thread_FILE t(readFd.value);
         QBENCHMARK {
             s_result = 0;
             t.start();
@@ -446,12 +446,12 @@ private Q_SLOTS:
 
     void QIODev()
     {
-        int readFd = -1, writeFd = -1;
+        lbu::fd readFd = {}, writeFd = {};
         QVERIFY(lbu::pipe::open(&readFd, &writeFd) == lbu::pipe::StatusNoError);
 
-        QtFdDev writeDev(writeFd);
+        QtFdDev writeDev(writeFd.value);
         QVERIFY(writeDev.open((QIODevice::WriteOnly)));
-        Thread_QIODev t(readFd);
+        Thread_QIODev t(readFd.value);
 
         QBENCHMARK {
             s_result = 0;
@@ -496,13 +496,13 @@ private Q_SLOTS:
 
     void FdStream()
     {
-        int readFd = -1, writeFd = -1;
+        lbu::fd readFd = {}, writeFd = {};
         QVERIFY(lbu::pipe::open(&readFd, &writeFd) == lbu::pipe::StatusNoError);
 
         lbu::stream::managed_fd_output_stream writeDev;
-        writeDev.reset(lbu::fd::unique_fd(writeFd), lbu::stream::FdBlockingState::Blocking);
+        writeDev.reset(lbu::unique_fd(writeFd), lbu::stream::FdBlockingState::Blocking);
         auto *s = writeDev.stream();
-        std::unique_ptr<Thread_FdStream> t(new Thread_FdStream(readFd));
+        std::unique_ptr<Thread_FdStream> t(new Thread_FdStream(readFd.value));
 
         QBENCHMARK {
             s_result = 0;
@@ -604,9 +604,9 @@ private Q_SLOTS:
     void RingBlockFd()
     {
         s_producerIdx = s_consumerIdx = 0;
-        int fd;
-        QVERIFY(lbu::event_fd::open(&fd, 0, lbu::event_fd::FlagsNonBlock) == lbu::event_fd::OpenNoError);
-        lbu::poll::unique_pollfd e(fd, lbu::poll::FlagsWriteReady);
+        lbu::fd f;
+        QVERIFY(lbu::event_fd::open(&f, 0, lbu::event_fd::FlagsNonBlock) == lbu::event_fd::OpenNoError);
+        lbu::poll::unique_pollfd e(f, lbu::poll::FlagsWriteReady);
 
         std::unique_ptr<Thread_RingBlockFd> t(new Thread_RingBlockFd(e.descriptor()));
         lbu::ring_spsc::handle<int>::producer producer;

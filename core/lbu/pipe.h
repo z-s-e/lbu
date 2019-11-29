@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -20,6 +20,8 @@
 #ifndef LIBLBU_PIPE_H
 #define LIBLBU_PIPE_H
 
+#include "lbu/fd.h"
+
 #include <cerrno>
 #include <fcntl.h>
 #include <limits.h>
@@ -27,6 +29,8 @@
 
 namespace lbu {
 namespace pipe {
+
+    static constexpr int AtomicWriteSize = PIPE_BUF;
 
     enum Flags {
         FlagsNone = 0,
@@ -41,15 +45,13 @@ namespace pipe {
         StatusSysTooManyFds = ENFILE
     };
 
-    static const int AtomicWriteSize = PIPE_BUF;
-
-    inline int open(int* read_filedes, int* write_filedes, int flags = FlagsNone)
+    inline int open(fd* read_f, fd* write_f, int flags = FlagsNone)
     {
         int fds[2];
         int s = pipe2(fds, flags);
         if( s == 0 ) {
-            *read_filedes = fds[0];
-            *write_filedes = fds[1];
+            read_f->value = fds[0];
+            write_f->value = fds[1];
             return StatusNoError;
         }
         return errno;

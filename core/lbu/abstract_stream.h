@@ -1,4 +1,4 @@
-/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  *
  * This file is part of the lbu library.
  *
@@ -52,6 +52,8 @@
 //   are many bugs relating to the blocking behavior being implicit and depending
 //   on the runtime state of the underlying primitives. I believe having the mode
 //   explicit should prevent most of these.
+// - No internal thread synchronization: In most cases this is just unneeded
+//   overhead and when it is needed it is trivial to add e.g. a mutex wrapper.
 
 namespace lbu {
 namespace stream {
@@ -95,7 +97,7 @@ namespace detail {
             StatusError = 1<<0,
             StatusEndOfStream = 1<<1
         };
-        unsigned char statusFlags = 0;
+        uint8_t statusFlags = 0;
 
     private:
         bool managesBuffer;
