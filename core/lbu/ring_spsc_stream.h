@@ -21,6 +21,7 @@
 #define LIBLBU_RING_SPSC_STREAM_H
 
 #include "lbu/abstract_stream.h"
+#include "lbu/eventfd.h"
 #include "lbu/fd.h"
 
 #include <atomic>
@@ -37,7 +38,7 @@ namespace stream {
             , eos(false)
         {}
 
-        LIBLBU_EXPORT static int open_event_fd(fd* event_fd);
+        LIBLBU_EXPORT static event_fd::open_result open_event_fd();
 
         std::atomic<uint32_t> producer_index;
         std::atomic<uint32_t> consumer_index;

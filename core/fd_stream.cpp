@@ -118,13 +118,12 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
 
     size_t count = 0;
     while( true ) {
-        ssize_t r;
-        int e = io::readv(filedes, buf_array, &r);
-        if( r > 0 ) {
-            count += size_t(r);
+        const auto r = io::readv(filedes, buf_array);
+        if( r.size > 0 ) {
+            count += size_t(r.size);
 
             if( count < required_read ) {
-                buf_array = io::io_vector_array_advance(buf_array, size_t(r));
+                buf_array = io::io_vector_array_advance(buf_array, size_t(r.size));
                 continue;
             }
 
@@ -135,7 +134,7 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
             }
 
             return ssize_t(count + bufferRead);
-        } else if( r == 0 ) {
+        } else if( r.size == 0 ) {
             if( mode == Mode::Blocking ) {
                 if( io::io_vector_array_has_zero_size(buf_array) ) {
                     err = io::ReadBadRequest;
@@ -150,10 +149,10 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
                     statusFlags = StatusEndOfStream;
                 return bufferRead;
             }
-        } else if( e == io::ReadWouldBlock && mode == Mode::NonBlocking ) {
+        } else if( r.status == io::ReadWouldBlock && mode == Mode::NonBlocking ) {
             return bufferRead;
         } else {
-            err = e;
+            err = r.status;
             statusFlags = StatusError;
             return -1;
         }
@@ -166,17 +165,16 @@ array_ref<const void> fd_input_stream::get_read_buffer(Mode mode)
         return {};
     update_blocking(mode, &fdBlocking, filedes);
 
-    ssize_t r;
-    int e = io::read(filedes, array_ref<char>(bufferBase, bufferCapacity), &r);
-    if( r > 0 ) {
+    const auto r = io::read(filedes, array_ref<char>(bufferBase, bufferCapacity));
+    if( r.size > 0 ) {
         bufferOffset = 0;
-        bufferAvailable = uint32_t(r);
+        bufferAvailable = uint32_t(r.size);
         return current_buffer();
-    } else if( r == 0 ) {
+    } else if( r.size == 0 ) {
         statusFlags = StatusEndOfStream;
-    } else if( mode == Mode::NonBlocking && e == io::ReadWouldBlock ) {
+    } else if( mode == Mode::NonBlocking && r.status == io::ReadWouldBlock ) {
     } else {
-        err = e;
+        err = r.status;
         statusFlags = StatusError;
     }
 
@@ -249,16 +247,15 @@ ssize_t fd_output_stream::write_fd(array_ref<io::io_vector> buf_array, Mode mode
         ssize_t count = 0;
 
         while( count < sum ) {
-            ssize_t r;
-            int e = io::writev(filedes, buf_array, &r);
-            if( r < 0 ) {
+            const auto r = io::writev(filedes, buf_array);
+            if( r.size < 0 ) {
                 statusFlags = StatusError;
-                err = e;
+                err = r.status;
                 bufferAvailable = 0;
                 return -1;
             }
-            count += r;
-            buf_array = io::io_vector_array_advance(buf_array, size_t(r));
+            count += r.size;
+            buf_array = io::io_vector_array_advance(buf_array, size_t(r.size));
         }
 
         if( manages_buffer() )
@@ -266,22 +263,21 @@ ssize_t fd_output_stream::write_fd(array_ref<io::io_vector> buf_array, Mode mode
 
         return sum - internalWriteSize;
     } else {
-        ssize_t r;
-        int e = io::writev(filedes, buf_array, &r);
-        if( r >= 0 ) {
-            if( r >= internalWriteSize ) {
+        const auto r = io::writev(filedes, buf_array);
+        if( r.size >= 0 ) {
+            if( r.size >= internalWriteSize ) {
                 if( manages_buffer() )
                     reset_buffer();
-                return r - internalWriteSize;
+                return r.size - internalWriteSize;
             } else {
-                bufferWriteOffset += r;
+                bufferWriteOffset += r.size;
                 return 0;
             }
-        } else if( e == io::WriteWouldBlock ) {
+        } else if( r.status == io::WriteWouldBlock ) {
             return 0;
         } else {
             statusFlags = StatusError;
-            err = e;
+            err = r.status;
             bufferAvailable = 0;
             return -1;
         }

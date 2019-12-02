@@ -86,17 +86,25 @@ namespace io {
     }
 
 
+    struct io_result {
+        ssize_t size;
+        int status = 0; // == ReadNoError == WriteNoError
+    };
+
     template< typename ...Args >
     struct temp_fail_retry {
-        template< ssize_t (*IOFunction)(Args...) >
-        static int apply(Args... args, ssize_t* result)
+        template< ssize_t (*IOFunction)(int, Args...) >
+        static io_result apply(int filedes, Args... args)
         {
+            io_result r;
             while( true ) {
-                *result = IOFunction(std::forward<Args>(args)...);
-                if( *result >= 0 )
-                    return 0;
-                if( errno != EINTR )
-                    return errno;
+                r.size = IOFunction(filedes, args...);
+                if( r.size >= 0 )
+                    return r;
+                if( errno != EINTR ) {
+                    r.status = errno;
+                    return r;
+                }
             }
         }
     };
@@ -112,14 +120,14 @@ namespace io {
         ReadIsDir = EISDIR
     };
 
-    inline int read(fd f, array_ref<void> buffer, ssize_t* result)
+    inline io_result read(fd f, array_ref<void> buffer)
     {
-        return temp_fail_retry<int, void*, size_t>::apply<::read>(f.value, buffer.data(), buffer.byte_size(), result);
+        return temp_fail_retry<void*, size_t>::apply<::read>(f.value, buffer.data(), buffer.byte_size());
     }
 
-    inline int readv(fd f, array_ref<const io_vector> iov, ssize_t* result)
+    inline io_result readv(fd f, array_ref<const io_vector> iov)
     {
-        return temp_fail_retry<int, const io_vector*, int>::apply<::readv>(f.value, iov.data(), iov.size(), result);
+        return temp_fail_retry<const io_vector*, int>::apply<::readv>(f.value, iov.data(), iov.size());
     }
 
     // Reading past the end of stream is treated as an IOError
@@ -155,14 +163,14 @@ namespace io {
         WriteBadRequest = EINVAL
     };
 
-    inline int write(fd f, array_ref<const void> buffer, ssize_t* result)
+    inline io_result write(fd f, array_ref<const void> buffer)
     {
-        return temp_fail_retry<int, const void*, size_t>::apply<::write>(f.value, buffer.data(), buffer.byte_size(), result);
+        return temp_fail_retry<const void*, size_t>::apply<::write>(f.value, buffer.data(), buffer.byte_size());
     }
 
-    inline int writev(fd f, array_ref<const io_vector> iov, ssize_t* result)
+    inline io_result writev(fd f, array_ref<const io_vector> iov)
     {
-        return temp_fail_retry<int, const io_vector*, int>::apply<::writev>(f.value, iov.data(), iov.size(), result);
+        return temp_fail_retry<const io_vector*, int>::apply<::writev>(f.value, iov.data(), iov.size());
     }
 
     inline int write_all(fd f, array_ref<const void> buffer)

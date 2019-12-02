@@ -386,9 +386,9 @@ bool ring_spsc::output_stream::update_buffer_size(ring_spsc_shared_data* shared,
     return bufferAvailable > 0;
 }
 
-int ring_spsc_shared_data::open_event_fd(fd* event_fd)
+event_fd::open_result ring_spsc_shared_data::open_event_fd()
 {
-    return event_fd::open(event_fd, 0, lbu::event_fd::FlagsNonBlock);
+    return event_fd::open(0, lbu::event_fd::FlagsNonBlock);
 }
 
 
@@ -411,7 +411,7 @@ ring_spsc_basic_controller::ring_spsc_basic_controller(uint32_t bufsize)
     d->bufsize = s;
     d->buf = p + padded;
 
-    ring_spsc_shared_data::open_event_fd(&(d->filedes));
+    d->filedes = ring_spsc_shared_data::open_event_fd().f.release();
 }
 
 ring_spsc_basic_controller::~ring_spsc_basic_controller()

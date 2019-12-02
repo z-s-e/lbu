@@ -180,48 +180,59 @@ namespace poll {
     }
 
 
-    inline int poll(pollfd* fds, nfds_t nfds, int* count,
-                    std::chrono::milliseconds timeout = NoTimeout)
+    struct poll_result {
+        int count;
+        int status = StatusNoError;
+    };
+
+    inline poll_result poll(pollfd* fds, nfds_t nfds,
+                            std::chrono::milliseconds timeout = NoTimeout)
     {
-        *count = ::poll(fds, nfds, timeout.count());
-        return *count == -1 ? errno : StatusNoError;
+        poll_result r;
+        r.count = ::poll(fds, nfds, timeout.count());
+        if( r.count == -1 )
+            r.status = errno;
+        return r;
     }
 
-    inline int poll(array_ref<pollfd> fds, int* count,
-                    std::chrono::milliseconds timeout = NoTimeout)
+    inline poll_result poll(array_ref<pollfd> fds,
+                            std::chrono::milliseconds timeout = NoTimeout)
     {
-        return poll(fds.data(), fds.size(), count, timeout);
+        return poll(fds.data(), fds.size(), timeout);
     }
 
-    inline int ppoll(pollfd* fds, nfds_t nfds, int* count,
-                     const struct timespec* timeout_ts = nullptr,
-                     const sigset_t* sigmask = nullptr)
+    inline poll_result ppoll(pollfd* fds, nfds_t nfds,
+                             const struct timespec* timeout_ts = nullptr,
+                             const sigset_t* sigmask = nullptr)
     {
-        *count = ::ppoll(fds, nfds, timeout_ts, sigmask);
-        return *count == -1 ? errno : StatusNoError;
+        poll_result r;
+        r.count = ::ppoll(fds, nfds, timeout_ts, sigmask);
+        if( r.count == -1 )
+            r.status = errno;
+        return r;
     }
 
-    inline int ppoll(array_ref<pollfd> fds, int* count,
-                     const struct timespec* timeout_ts = nullptr,
-                     const sigset_t* sigmask = nullptr)
+    inline poll_result ppoll(array_ref<pollfd> fds,
+                             const struct timespec* timeout_ts = nullptr,
+                             const sigset_t* sigmask = nullptr)
     {
-        return ppoll(fds.data(), fds.size(), count, timeout_ts, sigmask);
+        return lbu::poll::ppoll(fds.data(), fds.size(), timeout_ts, sigmask);
     }
 
-    inline int ppoll(pollfd* fds, nfds_t nfds, int* count,
-                     std::chrono::nanoseconds timeout,
-                     const sigset_t* sigmask = nullptr)
+    inline poll_result ppoll(pollfd* fds, nfds_t nfds,
+                             std::chrono::nanoseconds timeout,
+                             const sigset_t* sigmask = nullptr)
     {
         struct timespec ts;
         ts.tv_nsec = timeout.count() % std::nano::den;
         ts.tv_sec = timeout.count() / std::nano::den;
-        return ppoll(fds, nfds, count, &ts, sigmask);
+        return lbu::poll::ppoll(fds, nfds, &ts, sigmask);
     }
 
-    inline int ppoll(array_ref<pollfd> fds, int* count,
-                     std::chrono::nanoseconds timeout, const sigset_t* sigmask = nullptr)
+    inline poll_result ppoll(array_ref<pollfd> fds,
+                             std::chrono::nanoseconds timeout, const sigset_t* sigmask = nullptr)
     {
-        return ppoll(fds.data(), fds.size(), count, timeout, sigmask);
+        return ppoll(fds.data(), fds.size(), timeout, sigmask);
     }
 
     inline bool wait_for_event(fd f, short flags)
@@ -236,8 +247,6 @@ namespace poll {
             return false;
         }
     }
-
-    // TODO: add epoll, flush_fd?
 
 } // namespace poll
 } // namespace lbu

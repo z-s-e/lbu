@@ -45,16 +45,22 @@ namespace pipe {
         StatusSysTooManyFds = ENFILE
     };
 
-    inline int open(fd* read_f, fd* write_f, int flags = FlagsNone)
+    struct open_result {
+        unique_fd read_fd;
+        unique_fd write_fd;
+        int status = StatusNoError;
+    };
+
+    inline open_result open(int flags = FlagsNone)
     {
+        open_result r;
         int fds[2];
         int s = pipe2(fds, flags);
-        if( s == 0 ) {
-            read_f->value = fds[0];
-            write_f->value = fds[1];
-            return StatusNoError;
-        }
-        return errno;
+        r.read_fd.reset(fd(fds[0]));
+        r.write_fd.reset(fd(fds[1]));
+        if( s != 0 )
+            r.status = errno;
+        return r;
     }
 
 } // namespace pipe

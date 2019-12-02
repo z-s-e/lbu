@@ -83,17 +83,24 @@ namespace file {
         OpenWouldBlock = EWOULDBLOCK
     };
 
-    inline int open(fd* f, const char *pathname, int flags, int mode = (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP))
+    struct open_result {
+        unique_fd f;
+        int status = OpenNoError;
+    };
+
+    inline open_result open(const char *pathname, int flags, int mode = (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP))
     {
+        open_result r;
         int filedes;
         while( true ) {
             filedes = ::open(pathname, flags, mode);
-            f->value = filedes;
+            r.f.reset(fd(filedes));
             if( filedes >= 0 )
-                return OpenNoError;
+                return r;
             if( errno == EINTR )
                 continue;
-            return errno;
+            r.status = errno;
+            return r;
         }
     }
 
@@ -112,20 +119,18 @@ namespace file {
         SeekUnsupported = ESPIPE
     };
 
-    inline int seek(fd f, off_t offset, SeekOrigin whence = SeekOrigin::CurrentPosition)
-    {
-        if( ::lseek(f.value, offset, static_cast<int>(whence)) == off_t(-1) )
-            return errno;
-        return SeekNoError;
-    }
+    struct seek_result {
+        off_t offset;
+        int status = SeekNoError;
+    };
 
-    inline int seek(fd f, off_t offset, off_t* result, SeekOrigin whence = SeekOrigin::CurrentPosition)
+    inline seek_result seek(fd f, off_t offset, SeekOrigin whence = SeekOrigin::CurrentPosition)
     {
-        assert(result != nullptr);
-        *result = ::lseek(f.value, offset, static_cast<int>(whence));
-        if( *result == off_t(-1) )
-            return errno;
-        return SeekNoError;
+        seek_result r;
+        r.offset = ::lseek(f.value, offset, static_cast<int>(whence));
+        if( r.offset == off_t(-1) )
+            r.status = errno;
+        return r;
     }
 
 } // namespace file

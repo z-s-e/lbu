@@ -52,8 +52,7 @@ class QtFdDev : public QIODevice {
     Q_OBJECT
 
 public:
-    QtFdDev(int fd) : m_fd(fd) {}
-    ~QtFdDev() { m_fd.close(); }
+    QtFdDev(lbu::fd f) : m_fd(f) {}
 
     bool isSequential() const { return true; }
 
@@ -159,10 +158,6 @@ public:
         m_fd = fd;
         Q_ASSERT(m_fd);
     }
-    ~Thread_RawIO()
-    {
-        close(m_fd);
-    }
 };
 
 class Thread_FILE : public QThread {
@@ -212,8 +207,8 @@ class Thread_QIODev : public QThread {
     }
     QtFdDev m_dev;
 public:
-    Thread_QIODev(int fd)
-        : m_dev(fd)
+    Thread_QIODev(lbu::fd f)
+        : m_dev(f)
     {
         //auto b = m_dev.open(QIODevice::ReadOnly);
         auto b = m_dev.open(QIODevice::ReadOnly|QIODevice::Unbuffered);
@@ -240,9 +235,9 @@ class Thread_FdStream : public QThread {
     }
     lbu::stream::managed_fd_input_stream m_stream;
 public:
-    Thread_FdStream(int fd)
+    Thread_FdStream(lbu::unique_fd f)
     {
-        m_stream.reset(lbu::unique_fd(fd), lbu::stream::FdBlockingState::Blocking);
+        m_stream.reset(std::move(f), lbu::stream::FdBlockingState::Blocking);
     }
 };
 
@@ -298,17 +293,13 @@ class Thread_RingBlockFd : public QThread {
     void run() override
     {
         unsigned processed = 0;
-        const lbu::fd f(m_poll.fd);
         eventfd_t unused;
 
         while( processed < s_transfer_size ) {
             auto r = consumer.continuous_range();
             if( r.size() == 0 ) {
                 if( consumer.update_available() == 0 ) {
-                    int c = 0;
-                    do {
-                        lbu::poll::poll(&m_poll, 1, &c);
-                    } while( c < 1 );
+                    lbu::poll::wait_for_event(m_fd, lbu::poll::FlagsReadReady);
                     consumer.update_available();
                 }
                 r = consumer.continuous_range();
@@ -320,13 +311,13 @@ class Thread_RingBlockFd : public QThread {
 
             processed += r.size();
             consumer.release(r.size());
-            lbu::event_fd::read(f, &unused);
+            lbu::event_fd::read(m_fd, &unused);
         }
     }
-    pollfd m_poll;
+    lbu::fd m_fd;
 public:
     Thread_RingBlockFd(lbu::fd f)
-        : m_poll(lbu::poll::poll_fd(f, lbu::poll::FlagsReadReady))
+        : m_fd(f)
     {
     }
     lbu::ring_spsc::handle<int>::consumer consumer;
@@ -390,11 +381,11 @@ class BenchStream : public QObject
 private Q_SLOTS:
     void RawIO()
     {
-        lbu::fd readFd = {}, writeFd = {};
-        QVERIFY(lbu::pipe::open(&readFd, &writeFd) == lbu::pipe::StatusNoError);
+        auto pipe = lbu::pipe::open();
+        QVERIFY(pipe.status == lbu::pipe::StatusNoError);
         const auto buf = lbu::array_ref<int>(s_write_buffer);
 
-        Thread_RawIO t(readFd.value);
+        Thread_RawIO t(pipe.read_fd.get().value);
         QBENCHMARK {
             s_result = 0;
             t.start();
@@ -404,25 +395,24 @@ private Q_SLOTS:
                 for( unsigned j = 0; j < s_chunk_size; ++j ) {
                     s_write_buffer[j] = valueForIndex(i*s_chunk_size + j);
                 }
-                if( lbu::io::write_all(writeFd, buf) != lbu::io::WriteNoError )
+                if( lbu::io::write_all(pipe.write_fd.get(), buf) != lbu::io::WriteNoError )
                     Q_ASSERT(false);
             }
 
             t.wait();
         }
 
-        writeFd.close();
         QCOMPARE(s_result, s_expected);
     }
 
     void FILE_io()
     {
-        lbu::fd readFd = {}, writeFd = {};
-        QVERIFY(lbu::pipe::open(&readFd, &writeFd) == lbu::pipe::StatusNoError);
-        FILE* pipe_out = fdopen(writeFd.value, "w");
+        auto pipe = lbu::pipe::open();
+        QVERIFY(pipe.status == lbu::pipe::StatusNoError);
+        FILE* pipe_out = fdopen(pipe.write_fd.release().value, "w");
         QVERIFY(pipe_out);
 
-        Thread_FILE t(readFd.value);
+        Thread_FILE t(pipe.read_fd.release().value);
         QBENCHMARK {
             s_result = 0;
             t.start();
@@ -446,12 +436,12 @@ private Q_SLOTS:
 
     void QIODev()
     {
-        lbu::fd readFd = {}, writeFd = {};
-        QVERIFY(lbu::pipe::open(&readFd, &writeFd) == lbu::pipe::StatusNoError);
+        auto pipe = lbu::pipe::open();
+        QVERIFY(pipe.status == lbu::pipe::StatusNoError);
 
-        QtFdDev writeDev(writeFd.value);
+        QtFdDev writeDev(pipe.write_fd.get());
         QVERIFY(writeDev.open((QIODevice::WriteOnly)));
-        Thread_QIODev t(readFd.value);
+        Thread_QIODev t(pipe.read_fd.get());
 
         QBENCHMARK {
             s_result = 0;
@@ -496,13 +486,13 @@ private Q_SLOTS:
 
     void FdStream()
     {
-        lbu::fd readFd = {}, writeFd = {};
-        QVERIFY(lbu::pipe::open(&readFd, &writeFd) == lbu::pipe::StatusNoError);
+        auto pipe = lbu::pipe::open();
+        QVERIFY(pipe.status == lbu::pipe::StatusNoError);
 
         lbu::stream::managed_fd_output_stream writeDev;
-        writeDev.reset(lbu::unique_fd(writeFd), lbu::stream::FdBlockingState::Blocking);
+        writeDev.reset(std::move(pipe.write_fd), lbu::stream::FdBlockingState::Blocking);
         auto *s = writeDev.stream();
-        std::unique_ptr<Thread_FdStream> t(new Thread_FdStream(readFd.value));
+        std::unique_ptr<Thread_FdStream> t(new Thread_FdStream(std::move(pipe.read_fd)));
 
         QBENCHMARK {
             s_result = 0;
@@ -604,11 +594,10 @@ private Q_SLOTS:
     void RingBlockFd()
     {
         s_producerIdx = s_consumerIdx = 0;
-        lbu::fd f;
-        QVERIFY(lbu::event_fd::open(&f, 0, lbu::event_fd::FlagsNonBlock) == lbu::event_fd::OpenNoError);
-        lbu::poll::unique_pollfd e(f, lbu::poll::FlagsWriteReady);
+        auto eventfd = lbu::event_fd::open(0, lbu::event_fd::FlagsNonBlock);
+        QVERIFY(eventfd.status == lbu::event_fd::OpenNoError);
 
-        std::unique_ptr<Thread_RingBlockFd> t(new Thread_RingBlockFd(e.descriptor()));
+        std::unique_ptr<Thread_RingBlockFd> t(new Thread_RingBlockFd(eventfd.f.get()));
         lbu::ring_spsc::handle<int>::producer producer;
 
         lbu::ring_spsc::handle<int>::pair_producer_consumer({s_ring_buffer.begin(), s_ring_buffer.end()},
@@ -629,10 +618,7 @@ private Q_SLOTS:
                 auto r = producer.continuous_range();
                 if( r.size() == 0 ) {
                     if( producer.update_available() == 0 ) {
-                        int c = 0;
-                        do {
-                            lbu::poll::poll(e.as_pollfd(), 1, &c);
-                        } while( c < 1 );
+                        lbu::poll::wait_for_event(eventfd.f.get(), lbu::poll::FlagsWriteReady);
                         producer.update_available();
                     }
                     r = producer.continuous_range();
@@ -644,7 +630,7 @@ private Q_SLOTS:
 
                 processed += r.size();
                 producer.publish(r.size());
-                lbu::event_fd::write(e.descriptor(), lbu::event_fd::MaximumValue);
+                lbu::event_fd::write(eventfd.f.get(), lbu::event_fd::MaximumValue);
             }
 
             t->wait();

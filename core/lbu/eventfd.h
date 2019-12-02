@@ -61,25 +61,29 @@ namespace event_fd {
         WriteBadFd = EBADF
     };
 
-    inline int open(fd* f, unsigned initval = 0, int flags = FlagsNone)
+    struct open_result {
+        unique_fd f;
+        int status = OpenNoError;
+    };
+
+    inline open_result open(unsigned initval = 0, int flags = FlagsNone)
     {
+        open_result r;
         int filedes = ::eventfd(initval, flags);
-        f->value = filedes;
-        if( filedes == -1 )
-            return errno;
-        return OpenNoError;
+        r.f.reset(fd(filedes));
+        if( ! r.f )
+            r.status = errno;
+        return r;
     }
 
     inline int read(fd f, eventfd_t* dst)
     {
-        ssize_t r;
-        return io::read(f, array_ref<char>(reinterpret_cast<char*>(dst), sizeof(*dst)), &r);
+        return io::read(f, array_ref<char>(reinterpret_cast<char*>(dst), sizeof(*dst))).status;
     }
 
     inline int write(fd f, eventfd_t src)
     {
-        ssize_t r;
-        return io::write(f, array_ref<char>(reinterpret_cast<char*>(&src), sizeof(src)), &r);
+        return io::write(f, array_ref<char>(reinterpret_cast<char*>(&src), sizeof(src))).status;
     }
 
 } // namespace event_fd
