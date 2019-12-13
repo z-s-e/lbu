@@ -1,20 +1,22 @@
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.12)
 project(lbu)
 
 set(LIBLBU_VERSION_MAJOR 0)
 set(LIBLBU_VERSION_MINOR 1)
-set(LIBLBU_VERSION_PATCH 9)
+set(LIBLBU_VERSION_PATCH 10)
 set(LIBLBU_VERSION "${LIBLBU_VERSION_MAJOR}.${LIBLBU_VERSION_MINOR}.${LIBLBU_VERSION_PATCH}")
 
 option(LBU_BUILD_STATIC "Build lbu as a static library" OFF)
 option(LBU_BUILD_ALSA "Build lbu alsa library" ON)
+option(LBU_BUILD_TESTS "Build lbu tests" ON)
 
 set(CPP_VERSION 17)
 
 include(GNUInstallDirs)
 set(LIB_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR})
-set(LIB_STATIC_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/static)
-set(CMAKECONFIG_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
+set(LIB_STATIC_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR})
+set(CMAKECONFIG_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
+    CACHE STRING "Path to lbu cmake files")
 set(INCLUDE_IMPORT_DIR ${CMAKE_INSTALL_INCLUDEDIR})
 set(INCLUDE_INSTALL_DIR ${INCLUDE_IMPORT_DIR}/${PROJECT_NAME})
 
@@ -112,8 +114,13 @@ target_include_directories(lbu_core PUBLIC
 
 install(TARGETS lbu_core EXPORT lbuTargets
         LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+                COMPONENT lbu_Runtime
+                NAMELINK_COMPONENT lbu_Development
         ARCHIVE DESTINATION ${LIB_STATIC_INSTALL_DIR}
-        PUBLIC_HEADER DESTINATION ${INCLUDE_INSTALL_DIR})
+                COMPONENT lbu_Development
+        PUBLIC_HEADER DESTINATION ${INCLUDE_INSTALL_DIR}
+                COMPONENT lbu_Development
+       )
 
 
 ## Alsa
@@ -153,16 +160,20 @@ if(LBU_BUILD_ALSA)
                             $<INSTALL_INTERFACE:${INCLUDE_IMPORT_DIR}>)
     
     install(TARGETS lbu_alsa EXPORT lbuTargets
-        LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-        ARCHIVE DESTINATION ${LIB_STATIC_INSTALL_DIR}
-        PUBLIC_HEADER DESTINATION ${INCLUDE_INSTALL_DIR}/alsa)
+            LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+                    COMPONENT lbu_Runtime
+                    NAMELINK_COMPONENT lbu_Development
+            ARCHIVE DESTINATION ${LIB_STATIC_INSTALL_DIR}
+                    COMPONENT lbu_Development
+            PUBLIC_HEADER DESTINATION ${INCLUDE_INSTALL_DIR}/alsa
+                    COMPONENT lbu_Development
+           )
 endif()
 
 # --- TESTS
 
-find_package(Qt5 COMPONENTS Core Test QUIET)
-
-if(Qt5Core_FOUND)
+if(LBU_BUILD_TESTS)
+  find_package(Qt5 COMPONENTS Core Test REQUIRED)
   enable_testing()
   set(CMAKE_AUTOMOC ON)
   set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -191,17 +202,19 @@ configure_package_config_file(
 write_basic_package_version_file(
   ${CMAKE_CURRENT_BINARY_DIR}/lbu-config-version.cmake
   VERSION ${LIBLBU_VERSION}
-  COMPATIBILITY SameMajorVersion
+  COMPATIBILITY ExactVersion # TODO change to SameMajorVersion once stable
 )
 
 install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/lbu-config.cmake
   ${CMAKE_CURRENT_BINARY_DIR}/lbu-config-version.cmake
   DESTINATION ${CMAKECONFIG_INSTALL_DIR}
+  COMPONENT lbu_Development
 )
 
 install(
   EXPORT lbuTargets
   DESTINATION "${CMAKECONFIG_INSTALL_DIR}"
   FILE lbuTargets.cmake
+  COMPONENT lbu_Development
 )
