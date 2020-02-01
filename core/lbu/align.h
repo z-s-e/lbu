@@ -1,4 +1,4 @@
-/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2020 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -9,7 +9,6 @@
 
 #include <cassert>
 #include <stddef.h>
-#include <stdint.h>
 
 namespace lbu {
 

@@ -1,11 +1,10 @@
-/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2020 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #ifndef LIBLBU_MEMORY_H
 #define LIBLBU_MEMORY_H
 
-#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <type_traits>

@@ -1,4 +1,4 @@
-/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2020 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -7,10 +7,7 @@
 
 #include "lbu/fd.h"
 
-#include <cerrno>
-#include <fcntl.h>
 #include <limits.h>
-#include <unistd.h>
 
 namespace lbu {
 namespace pipe {

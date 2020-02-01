@@ -1,4 +1,4 @@
-/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2020 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -7,7 +7,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cmath>
 #include <limits>
 #include <type_traits>
 
@@ -123,7 +122,7 @@ namespace lbu {
         static_assert(std::is_integral<ExpType>::value && !std::is_signed<ExpType>::value, "Need unsigned int type as exponent");
         static_assert(std::is_integral<BaseType>::value, "Need int type as base");
 
-        BaseType absBase = std::abs(base);
+        BaseType absBase = abs(base);
         ExpType expTmp = exp;
         BaseType result = 1;
         while( expTmp ) {

@@ -1,4 +1,4 @@
-/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2020 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -9,10 +9,7 @@
 #include "lbu/lbu_global.h"
 #include "lbu/io.h"
 
-#include <algorithm>
 #include <cstring>
-#include <type_traits>
-#include <unistd.h>
 
 // A stream abstraction similar to the C FILE streams or std::iostream, but with
 // many different design decisions. The design goals are
