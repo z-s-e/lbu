@@ -1,4 +1,4 @@
-/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2020 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -6,8 +6,7 @@
 #define LIBLBU_BYTE_BUFFER_H
 
 #include "lbu/array_ref.h"
-#include "lbu/memory.h"
-#include "lbu/xmalloc.h"
+#include "lbu/dynamic_memory.h"
 
 #include <algorithm>
 #include <endian.h>
@@ -474,7 +473,7 @@ namespace lbu {
 
     inline void byte_buffer::move_from(byte_buffer& other)
     {
-        std::memcpy(this, &other, sizeof(byte_buffer));
+        d = other.d;
         if( ! is_small() )
             other.set_small_size(0);
     }

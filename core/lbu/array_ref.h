@@ -1,17 +1,15 @@
-/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2020 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #ifndef LIBLBU_ARRAY_REF_H
 #define LIBLBU_ARRAY_REF_H
 
-#include "lbu/align.h"
+#include "lbu/memory.h"
 
 #include <algorithm>
 #include <array>
-#include <cassert>
 #include <limits>
-#include <type_traits>
 #include <utility>
 
 namespace lbu {

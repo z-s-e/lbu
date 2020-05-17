@@ -2,8 +2,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#ifndef LIBLBU_BUFFER_STREAM_H
-#define LIBLBU_BUFFER_STREAM_H
+#ifndef LIBLBU_BYTE_BUFFER_STREAM_H
+#define LIBLBU_BYTE_BUFFER_STREAM_H
 
 #include "lbu/abstract_stream.h"
 #include "lbu/byte_buffer.h"
@@ -57,4 +57,4 @@ namespace stream {
 } // namespace stream
 } // namespace lbu
 
-#endif // LIBLBU_BUFFER_STREAM_H
+#endif // LIBLBU_BYTE_BUFFER_STREAM_H

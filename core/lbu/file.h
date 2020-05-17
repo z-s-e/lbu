@@ -86,34 +86,6 @@ namespace file {
     }
 
 
-    enum class SeekOrigin {
-        Start = SEEK_SET,
-        CurrentPosition = SEEK_CUR,
-        End = SEEK_END
-    };
-
-    enum SeekError {
-        SeekNoError = 0,
-        SeekBadFd = EBADF,
-        SeekBadRequest = EINVAL,
-        SeekOffsetOverflow = EOVERFLOW,
-        SeekUnsupported = ESPIPE
-    };
-
-    struct seek_result {
-        off_t offset;
-        int status = SeekNoError;
-    };
-
-    inline seek_result seek(fd f, off_t offset, SeekOrigin whence = SeekOrigin::CurrentPosition)
-    {
-        seek_result r;
-        r.offset = ::lseek(f.value, offset, static_cast<int>(whence));
-        if( r.offset == off_t(-1) )
-            r.status = errno;
-        return r;
-    }
-
 } // namespace file
 } // namespace lbu
 

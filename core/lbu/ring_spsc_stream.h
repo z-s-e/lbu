@@ -1,4 +1,4 @@
-/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2020 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -141,7 +141,7 @@ namespace stream {
 
     class ring_spsc_basic_controller {
     public:
-        static const uint32_t DefaultRingBufferSize = 2 * ring_spsc::DefaultRingSegmentLimit;
+        static constexpr uint32_t DefaultRingBufferSize = 2 * ring_spsc::DefaultRingSegmentLimit;
 
         explicit LIBLBU_EXPORT ring_spsc_basic_controller(uint32_t bufsize = DefaultRingBufferSize);
 

@@ -1,4 +1,4 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2020 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -184,9 +184,9 @@ namespace algorithm {
         struct data {
             array_ref<T, SizeType> buffer;
             SizeType localProducerIndex = 0;
+            SizeType localConsumerIndex = 0;
             std::atomic<SizeType>* sharedProducerIndex = {};
             std::atomic<SizeType>* sharedConsumerIndex = {};
-            SizeType localConsumerIndex = 0;
 
             void reset(array_ref<T, SizeType> buf,
                        std::atomic<SizeType>* p,

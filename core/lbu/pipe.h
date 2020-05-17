@@ -49,4 +49,3 @@ namespace pipe {
 } // namespace lbu
 
 #endif // LIBLBU_PIPE_H
-

@@ -1,14 +1,13 @@
-/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2020 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "lbu/ring_spsc_stream.h"
 
-#include "lbu/align.h"
+#include "lbu/dynamic_memory.h"
 #include "lbu/eventfd.h"
 #include "lbu/poll.h"
 #include "lbu/ring_spsc.h"
-#include "lbu/xmalloc.h"
 
 namespace lbu {
 namespace stream {
@@ -386,26 +385,27 @@ struct ring_spsc_basic_controller::internal {
 
 ring_spsc_basic_controller::ring_spsc_basic_controller(uint32_t bufsize)
 {
-    const auto align = size_t(std::max<long>(sysconf(_SC_LEVEL1_DCACHE_LINESIZE), alignof(internal)));
+    const auto align = memory_interference_alignment();
     const auto padded = align_up(sizeof(internal), align);
-    const auto s = std::min(std::max(bufsize, 1u), (uint32_t(1) << 31) - 1);
-    char* p = xmalloc_aligned<char>(align, padded + s);
+    bufsize = std::min<uint32_t>(bufsize, alg::max_size());
+    assert(bufsize > 0);
+    char* p = xmalloc_aligned<char>(align, padded + bufsize);
     d = reinterpret_cast<internal*>(p);
 
     new (d) internal;
-    d->bufsize = s;
+    d->bufsize = bufsize;
     d->buf = p + padded;
 
-    d->filedes = ring_spsc_shared_data::open_event_fd().f.release();
+    auto efd = ring_spsc_shared_data::open_event_fd();
+    if( efd.status != event_fd::OpenNoError)
+        unexpected_system_error(efd.status);
+    d->filedes = efd.f.release();
 }
 
 ring_spsc_basic_controller::~ring_spsc_basic_controller()
 {
-    if( d->filedes )
-        d->filedes.close();
-
+    d->filedes.close();
     d->~internal();
-
     ::free(d);
 }
 

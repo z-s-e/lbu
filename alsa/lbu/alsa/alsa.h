@@ -1,11 +1,11 @@
-/* Copyright 2015-2016 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2020 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #ifndef LIBLBU_ALSA_H
 #define LIBLBU_ALSA_H
 
-#include "lbu/memory.h"
+#include "lbu/dynamic_memory.h"
 #include "lbu/endian.h"
 
 #include <alsa/asoundlib.h>
@@ -49,7 +49,7 @@ namespace alsa {
             AllCards = -1
         };
 
-        enum Direction {
+        enum class Direction {
             Playback = 1 << 0,
             Capture = 1 << 1,
             Both = Playback | Capture
@@ -62,7 +62,7 @@ namespace alsa {
             FlagsCompatibility = 1 << 3
         };
 
-        explicit device_list(int cardIndex = AllCards, int* error = nullptr);
+        explicit device_list(int card_index = AllCards, int* error = nullptr);
         ~device_list();
 
         device_list(const device_list&) = delete;
@@ -90,7 +90,7 @@ namespace alsa {
 
         static int device_flags(const char* name);
 
-        struct hw_device { char name[8]; }; // TODO change to array?
+        struct hw_device { char name[8]; };
         static hw_device device_for_card_index(int index);
 
     private:
@@ -101,8 +101,7 @@ namespace alsa {
     class pcm_format {
     public:
         pcm_format() = default;
-        pcm_format(snd_pcm_format_t type, int16_t channels, int32_t rate)
-            : m_type(type), m_channels(channels), m_rate(rate) {}
+        pcm_format(snd_pcm_format_t type, int16_t channels, int32_t rate);
         // default copy ctor/assignment ok
 
         snd_pcm_format_t type() const { return static_cast<snd_pcm_format_t>(m_type); }
@@ -121,37 +120,13 @@ namespace alsa {
         int32_t m_rate = 0;
     };
 
-    class pcm_config {
-    public:
-        pcm_config() = default;
-        pcm_config(snd_pcm_access_t access, pcm_format format, snd_pcm_uframes_t framesPerPeriod, uint32_t periods)
-            : m_access(access), m_format(format), m_period_size(uint32_t(framesPerPeriod)), m_periods(periods) {}
-        // default copy ctor/assignment ok
-
-        snd_pcm_access_t access() const { return m_access; }
-        pcm_format format() const { return m_format; }
-        snd_pcm_uframes_t frames_per_period() const { return snd_pcm_uframes_t(m_period_size); }
-        uint32_t periods() const { return m_periods; }
-
-        bool is_interleaved() const;
-        bool is_noninterleaved() const;
-
-        int period_native_byte_size() const { return format().frame_native_byte_size() * int(frames_per_period()); }
-        int period_packed_byte_size() const { return format().frame_packed_byte_size() * int(frames_per_period()); }
-
-    private:
-        snd_pcm_access_t m_access;
-        pcm_format m_format;
-        uint32_t m_period_size;
-        uint32_t m_periods;
-    };
-
 
     class pcm_buffer {
     public:
         pcm_buffer() = default;
-        pcm_buffer(const snd_pcm_channel_area_t* areas, snd_pcm_uframes_t offset, snd_pcm_uframes_t frames)
-            : m_areas(areas), m_offset(offset), m_frames(frames) {}
+        pcm_buffer(const snd_pcm_channel_area_t* areas,
+                   snd_pcm_uframes_t offset,
+                   snd_pcm_uframes_t frames);
         // default copy ctor/assignment ok
 
         const snd_pcm_channel_area_t* areas() const { return m_areas; }
@@ -161,8 +136,7 @@ namespace alsa {
         class channel_iter {
         public:
             channel_iter() = default;
-            channel_iter(void* data, unsigned stride)
-                : d(data), stride(stride) {}
+            channel_iter(void* data, unsigned stride);
             // default copy ctor/assignment ok
 
             void* data() { return d; }
@@ -209,17 +183,19 @@ namespace alsa {
             FlagsNoAutoResample = SND_PCM_NO_AUTO_RESAMPLE,
             FlagsNoAutoChannels = SND_PCM_NO_AUTO_CHANNELS,
             FlagsNoAutoFormat =  SND_PCM_NO_AUTO_FORMAT,
-            FlagsNoAutoConversion = SND_PCM_NO_AUTO_RESAMPLE | SND_PCM_NO_AUTO_CHANNELS | SND_PCM_NO_AUTO_CHANNELS
+            FlagsNoAutoConversion = FlagsNoAutoResample | FlagsNoAutoChannels | FlagsNoAutoFormat
         };
 
-        pcm_device(const char* deviceName, snd_pcm_stream_t dir, int flags, int* error = nullptr);
+        pcm_device() = default;
+        pcm_device(const char* device_name, snd_pcm_stream_t dir,
+                   int flags = FlagsNone, int* error = nullptr);
 
         pcm_device(const pcm_device&) = delete;
         pcm_device& operator=(const pcm_device&) = delete;
 
         ~pcm_device() { cleanup(); }
 
-        int open(const char* deviceName, snd_pcm_stream_t dir, int flags);
+        int open(const char* device_name, snd_pcm_stream_t dir, int flags = FlagsNone);
         void close();
 
         bool is_valid() const { return m_handle; }
@@ -227,8 +203,8 @@ namespace alsa {
 
         snd_pcm_t* handle() const { return m_handle; }
 
-        pcm_buffer mmap_begin(snd_pcm_uframes_t frames, int* error);
-        snd_pcm_sframes_t mmap_commit(const pcm_buffer& buffer);
+        static pcm_buffer mmap_begin(snd_pcm_t* pcm, snd_pcm_uframes_t frames, int* error);
+        static snd_pcm_sframes_t mmap_commit(snd_pcm_t* pcm, const pcm_buffer& buffer);
 
     private:
         void cleanup() { if( m_handle ) snd_pcm_close(m_handle); }
@@ -282,9 +258,9 @@ namespace alsa {
         return -1;
     }
 
-    inline device_list::device_list(int cardIndex, int* error)
+    inline device_list::device_list(int card_index, int* error)
     {
-        int err = snd_device_name_hint(cardIndex, "pcm", &hints);
+        int err = snd_device_name_hint(card_index, "pcm", &hints);
         if( error )
             *error = err;
     }
@@ -360,6 +336,10 @@ namespace alsa {
         ++p;
         return *this;
     }
+
+    inline pcm_format::pcm_format(snd_pcm_format_t type, int16_t channels, int32_t rate)
+        : m_type(type), m_channels(channels), m_rate(rate)
+    {}
 
     inline int pcm_format::native_byte_size(snd_pcm_format_t type)
     {
@@ -448,15 +428,11 @@ namespace alsa {
         }
     }
 
-    inline bool pcm_config::is_interleaved() const
-    {
-        return m_access == SND_PCM_ACCESS_MMAP_INTERLEAVED || m_access == SND_PCM_ACCESS_RW_INTERLEAVED;
-    }
-
-    inline bool pcm_config::is_noninterleaved() const
-    {
-        return m_access == SND_PCM_ACCESS_MMAP_NONINTERLEAVED || m_access == SND_PCM_ACCESS_RW_NONINTERLEAVED;
-    }
+    inline pcm_buffer::pcm_buffer(const snd_pcm_channel_area_t* areas,
+                                  snd_pcm_uframes_t offset,
+                                  snd_pcm_uframes_t frames)
+        : m_areas(areas), m_offset(offset), m_frames(frames)
+    {}
 
     inline pcm_buffer::channel_iter pcm_buffer::begin(unsigned channel) const
     {
@@ -469,6 +445,10 @@ namespace alsa {
         addr += stride * m_offset;
         return {addr, stride};
     }
+
+    inline pcm_buffer::channel_iter::channel_iter(void* data, unsigned stride)
+        : d(data), stride(stride)
+    {}
 
     inline pcm_buffer::channel_iter& pcm_buffer::channel_iter::operator++()
     {
@@ -668,17 +648,17 @@ namespace alsa {
         write_f(value, type);
     }
 
-    inline pcm_device::pcm_device(const char* deviceName, snd_pcm_stream_t dir, int flags, int* error)
+    inline pcm_device::pcm_device(const char* device_name, snd_pcm_stream_t dir, int flags, int* error)
     {
-        int err = snd_pcm_open(&m_handle, deviceName, dir, flags);
+        int err = snd_pcm_open(&m_handle, device_name, dir, flags);
         if( error )
             *error = err;
     }
 
-    inline int pcm_device::open(const char* deviceName, snd_pcm_stream_t dir, int flags)
+    inline int pcm_device::open(const char* device_name, snd_pcm_stream_t dir, int flags)
     {
         cleanup();
-        return snd_pcm_open(&m_handle, deviceName, dir, flags);
+        return snd_pcm_open(&m_handle, device_name, dir, flags);
     }
 
     inline void pcm_device::close()
@@ -687,17 +667,17 @@ namespace alsa {
         m_handle = {};
     }
 
-    inline pcm_buffer pcm_device::mmap_begin(snd_pcm_uframes_t frames, int* error)
+    inline pcm_buffer pcm_device::mmap_begin(snd_pcm_t* pcm, snd_pcm_uframes_t frames, int* error)
     {
         pcm_buffer buf;
         buf.m_frames = frames;
-        *error = snd_pcm_mmap_begin(m_handle, &buf.m_areas, &buf.m_offset, &buf.m_frames);
+        *error = snd_pcm_mmap_begin(pcm, &buf.m_areas, &buf.m_offset, &buf.m_frames);
         return buf;
     }
 
-    inline snd_pcm_sframes_t pcm_device::mmap_commit(const pcm_buffer& buffer)
+    inline snd_pcm_sframes_t pcm_device::mmap_commit(snd_pcm_t* pcm, const pcm_buffer& buffer)
     {
-        return snd_pcm_mmap_commit(m_handle, buffer.offset(), buffer.frames());
+        return snd_pcm_mmap_commit(pcm, buffer.offset(), buffer.frames());
     }
 
 } // namespace alsa

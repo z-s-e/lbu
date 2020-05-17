@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#include "lbu/buffer_stream.h"
+#include "lbu/byte_buffer_stream.h"
 
 namespace lbu {
 namespace stream {

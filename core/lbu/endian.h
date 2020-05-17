@@ -24,11 +24,11 @@ namespace lbu {
     struct endian<uint16_t> {
         static uint16_t from_little(const void* src)
         {
-            return le16toh(pod_from_raw_bytes<uint16_t>(src));
+            return le16toh(byte_reinterpret_cast<uint16_t>(src));
         }
         static uint16_t from_big(const void* src)
         {
-            return be16toh(pod_from_raw_bytes<uint16_t>(src));
+            return be16toh(byte_reinterpret_cast<uint16_t>(src));
         }
         static void to_little(uint16_t v, void* dst)
         {
@@ -74,11 +74,11 @@ namespace lbu {
     struct endian<uint32_t> {
         static uint32_t from_little(const void* src)
         {
-            return le32toh(pod_from_raw_bytes<uint32_t>(src));
+            return le32toh(byte_reinterpret_cast<uint32_t>(src));
         }
         static uint32_t from_big(const void* src)
         {
-            return be32toh(pod_from_raw_bytes<uint32_t>(src));
+            return be32toh(byte_reinterpret_cast<uint32_t>(src));
         }
         static void to_little(uint32_t v, void* dst)
         {
@@ -99,11 +99,11 @@ namespace lbu {
     struct endian<uint64_t> {
         static uint64_t from_little(const void* src)
         {
-            return le64toh(pod_from_raw_bytes<uint64_t>(src));
+            return le64toh(byte_reinterpret_cast<uint64_t>(src));
         }
         static uint64_t from_big(const void* src)
         {
-            return be64toh(pod_from_raw_bytes<uint64_t>(src));
+            return be64toh(byte_reinterpret_cast<uint64_t>(src));
         }
         static void to_little(uint64_t v, void* dst)
         {
