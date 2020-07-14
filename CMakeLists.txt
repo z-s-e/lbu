@@ -3,7 +3,7 @@ project(lbu)
 
 set(LIBLBU_VERSION_MAJOR 0)
 set(LIBLBU_VERSION_MINOR 1)
-set(LIBLBU_VERSION_PATCH 12)
+set(LIBLBU_VERSION_PATCH 13)
 set(LIBLBU_VERSION "${LIBLBU_VERSION_MAJOR}.${LIBLBU_VERSION_MINOR}.${LIBLBU_VERSION_PATCH}")
 
 option(LBU_BUILD_STATIC "Build lbu as a static library" OFF)
@@ -39,7 +39,6 @@ set(lbu_core_src
     core/abstract_stream.cpp
     core/array_ref.cpp
     core/ascii.cpp
-    core/bit_ops.cpp
     core/byte_buffer_stream.cpp
     core/byte_buffer.cpp
     core/core.cpp
@@ -62,7 +61,6 @@ set(lbu_core_hdr
     core/lbu/abstract_stream.h
     core/lbu/array_ref.h
     core/lbu/ascii.h
-    core/lbu/bit_ops.h
     core/lbu/byte_buffer_stream.h
     core/lbu/byte_buffer.h
     core/lbu/dynamic_memory.h

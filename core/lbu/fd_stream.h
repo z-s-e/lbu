@@ -1,4 +1,4 @@
-/* Copyright 2015-2019 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2020 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -31,7 +31,7 @@ namespace stream {
 
         int status() const { return err; }
 
-        char* buffer_base() { return bufferBase; }
+        void* buffer_base() { return bufferBase; }
 
     protected:
         LIBLBU_EXPORT ssize_t read_stream(array_ref<io::io_vector> buf_array, size_t required_read) override;
@@ -60,7 +60,7 @@ namespace stream {
 
         int status() const { return err; }
 
-        char* buffer_base() { return bufferBase; }
+        void* buffer_base() { return bufferBase; }
 
     protected:
         LIBLBU_EXPORT ssize_t write_stream(array_ref<io::io_vector> buf_array, Mode mode) override;

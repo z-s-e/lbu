@@ -82,6 +82,27 @@ namespace lbu {
         static constexpr size_t max_size() { return (size_t(1) << 31) - 1; }
 
     private:
+        bool is_small() const { return d.small.size & SmallFlag; }
+        size_t small_size() const;
+        void set_small_size(size_t size);
+        void set_small(const void* data, size_t size);
+
+        char* char_data() const;
+        array_ref<char> char_ref() const;
+
+        size_t ext_capacity() const;
+        void set_ext_capacity(size_t capacity);
+        void set_ext(char* data, size_t size, size_t capacity);
+
+        void set_size_checked(size_t size);
+        void set_capacity_checked(size_t capacity);
+
+        array_ref<void> append_base(size_t count);
+
+        void cleanup();
+        void move_from(byte_buffer& other);
+        size_t grow_capacity(size_t size) const;
+
         // data
 
         struct external_data {
@@ -109,29 +130,6 @@ namespace lbu {
             small_data small;
             external_data ext;
         } d;
-
-        // methods
-
-        bool is_small() const { return d.small.size & SmallFlag; }
-        size_t small_size() const;
-        void set_small_size(size_t size);
-        void set_small(const void* data, size_t size);
-
-        char* char_data() const;
-        array_ref<char> char_ref() const;
-
-        size_t ext_capacity() const;
-        void set_ext_capacity(size_t capacity);
-        void set_ext(char* data, size_t size, size_t capacity);
-
-        void set_size_checked(size_t size);
-        void set_capacity_checked(size_t capacity);
-
-        array_ref<void> append_base(size_t count);
-
-        void cleanup();
-        void move_from(byte_buffer& other);
-        size_t grow_capacity(size_t size) const;
     };
 
     // implementation
@@ -266,7 +264,7 @@ namespace lbu {
             set_size_checked(newSize);
         } else {
             const auto newCapacity = grow_capacity(newSize);
-            char* newData = xmalloc<char>(newCapacity);
+            char* newData = xmalloc_bytes<char>(newCapacity);
             char* newC = newData + index;
             std::memcpy(newData, c, index);
             std::memcpy(newC + count, c + index,  oldSize - index);
@@ -430,12 +428,12 @@ namespace lbu {
             set_small(r.data(), r.size());
             ::free(r.data());
         } else if( is_small() ) {
-            char* c = xmalloc<char>(capacity);
+            char* c = xmalloc_bytes<char>(capacity);
             std::memcpy(c, r.data(), r.size());
             // memcpy must happen first
             set_ext(c, r.size(), capacity);
         } else {
-            set_ext(xrealloc<char>(d.ext.data, capacity), r.size(), capacity);
+            set_ext(xrealloc_bytes<char>(d.ext.data, capacity), r.size(), capacity);
         }
     }
 
@@ -451,10 +449,10 @@ namespace lbu {
             char* newC;
 
             if( is_small() ) {
-                newC = xmalloc<char>(newCapacity);
+                newC = xmalloc_bytes<char>(newCapacity);
                 std::memcpy(newC, c, oldSize);
             } else {
-                newC = xrealloc<char>(c, newCapacity);
+                newC = xrealloc_bytes<char>(c, newCapacity);
             }
             set_ext(newC, newSize, newCapacity);
             c = newC;

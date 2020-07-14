@@ -10,7 +10,6 @@
 #include <cstring>
 #include <stddef.h>
 #include <stdint.h>
-#include <type_traits>
 #include <unistd.h>
 
 namespace lbu {
@@ -92,7 +91,7 @@ namespace lbu {
         long tmp = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
         // I do not see a reason for this call to ever fail,
         // so for now just assert on a sane value.
-        assert(tmp >= sizeof(void*));
+        assert(tmp >= long(alignof(max_align_t)));
         auto align = size_t(tmp);
         assert(is_pow2(align));
         return align;
@@ -123,15 +122,96 @@ namespace lbu {
     }
 
 
-    // buffer spec
+    // dynamic data
 
     struct buffer_spec {
-        size_t size = 0;
-        size_t align = 0;
+        buffer_spec() = default;
+        buffer_spec(size_t byte_size, size_t alignment) : size(byte_size), align(alignment) {}
 
-        bool is_valid() const { return size > 0 && is_pow2(align); }
+        size_t size = 0;
+        size_t align = 1;
+
+        bool is_valid() const
+        {
+            return size < std::numeric_limits<size_t>::max() && is_pow2(align);
+        }
         explicit operator bool() const { return is_valid(); }
     };
+
+    class dynamic_struct {
+    public:
+        template< typename T >
+        struct member_offset {
+            size_t offset;
+
+            member_offset<void> raw() const { return {offset}; }
+        };
+
+        template< typename T >
+        member_offset<T> add_member(size_t count = 1,
+                                    size_t alignment = 0,
+                                    size_t* align_padding = nullptr)
+        {
+            assert(count > 0 && count < std::numeric_limits<size_t>::max() / sizeof(T));
+            buffer_spec s;
+            s.size = count * sizeof(T);
+            s.align = (alignment == 0 ? alignof(T) : alignment);
+            assert(s.align >= alignof(T));
+            return { add_member_raw(s, align_padding).offset };
+        }
+
+        member_offset<void> add_member_raw(buffer_spec s, size_t* align_padding = nullptr)
+        {
+            assert(s.is_valid());
+            spec.align = std::max(spec.align, s.align);
+            size_t off = spec.size;
+            if( off > std::numeric_limits<size_t>::max() - (s.align - 1) )
+                off = std::numeric_limits<size_t>::max();
+            else
+                off = align_up(off, s.align);
+            if( align_padding != nullptr )
+                *align_padding += (off - spec.size);
+            if( off > std::numeric_limits<size_t>::max() - s.size )
+                spec.size = std::numeric_limits<size_t>::max();
+            else
+                spec.size = off + s.size;
+            return { off };
+        }
+
+        void add_align_padding(size_t alignment)
+        {
+            assert(is_pow2(alignment));
+            if( spec.size > std::numeric_limits<size_t>::max() - (alignment - 1) )
+                spec.size = std::numeric_limits<size_t>::max();
+            else
+                spec.size = align_up(spec.size, alignment);
+        }
+
+        bool is_valid() const { return spec.is_valid(); }
+        explicit operator bool() const { return is_valid(); }
+        buffer_spec storage() const { return spec; }
+
+        template< typename T >
+        void* resolve(void* ptr, member_offset<T> off) const
+        {
+            assert(is_valid());
+            assert(off.offset < spec.size);
+            auto p = static_cast<char*>(ptr) + off.offset;
+            return p;
+        }
+
+    private:
+        buffer_spec spec;
+    };
+
+
+    // byte types
+
+    template< typename T > struct is_byte_type : std::false_type {};
+    template<> struct is_byte_type<char> : std::true_type {};
+    template<> struct is_byte_type<signed char> : std::true_type {};
+    template<> struct is_byte_type<unsigned char> : std::true_type {};
+    template<> struct is_byte_type<std::byte> : std::true_type {};
 
 } // namespace lbu
 

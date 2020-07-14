@@ -128,8 +128,8 @@ namespace detail {
         /// Only call this after checking availabilty with manages_buffer().
         ///
         /// If mode is Blocking, an empty (invalid) array_ref indicates either a stream error or
-        /// end of stream, otherwise a valid ref is returned. In NonBlocking mode an invalid ref may
-        /// also be returned when no data is available without blocking.
+        /// end of stream, otherwise a valid ref is returned. In NonBlocking mode an invalid ref
+        /// may also be returned when no data is available without blocking.
         ///
         /// If a valid ref is returned, it will point to a buffer containing the next data in the
         /// stream. Once done with reading, one must call advance_buffer(..) resp.
@@ -187,7 +187,8 @@ namespace detail {
         abstract_input_stream(abstract_input_stream&&) = default;
         abstract_input_stream& operator=(abstract_input_stream&&) = default;
 
-        virtual ssize_t read_stream(array_ref<io::io_vector> buf_array, size_t required_read) = 0;
+        virtual ssize_t read_stream(array_ref<io::io_vector> buf_array,
+                                    size_t required_read) = 0;
         virtual LIBLBU_EXPORT array_ref<const void> get_read_buffer(Mode mode);
     };
 
@@ -235,8 +236,8 @@ namespace detail {
         /// Flush internal buffer.
         ///
         /// Returns true when all internal buffer have been flushed. If mode is Blocking, returning
-        /// false indicates a stream error. In NonBlocking mode, the method may return false even when
-        /// no error occured (but flushing the internal buffers would block).
+        /// false indicates a stream error. In NonBlocking mode, the method may return false even
+        /// when no error occured (but flushing the internal buffers would block).
         bool flush_buffer(Mode mode = Mode::Blocking)
         {
             if( ! manages_buffer() )

@@ -8,6 +8,7 @@
 #include "lbu/fd.h"
 
 #include <limits>
+#include <stdint.h>
 
 namespace lbu {
 namespace file {

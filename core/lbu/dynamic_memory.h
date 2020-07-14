@@ -17,148 +17,97 @@ namespace lbu {
 
     // TODO: use owner<T> instead of T*?
 
-    template< typename T >
-    T* malloc(size_t count)
+    template< typename ByteType >
+    ByteType* malloc_bytes(size_t count)
     {
-        static_assert(std::is_pod<T>::value, "only POD supported");
+        static_assert(is_byte_type<ByteType>::value, "need byte type");
         if( count == 0 )
             return {};
-        assert(count <= (std::numeric_limits<size_t>::max() / sizeof(T)));
-        return static_cast<T*>(::malloc(sizeof(T) * count));
+        return static_cast<ByteType*>(::malloc(count));
     }
 
-    template< typename T >
-    T* xmalloc(size_t count)
+    template< typename ByteType >
+    ByteType* xmalloc_bytes(size_t count)
     {
-        T* p = malloc<T>(count);
+        ByteType* p = malloc_bytes<ByteType>(count);
         if( count > 0 && p == nullptr )
             unexpected_memory_exhaustion();
         return p;
     }
 
-    template< typename T >
-    T* calloc(size_t count)
+    template< typename ByteType >
+    ByteType* realloc_bytes(ByteType* p, size_t count)
     {
-        static_assert(std::is_pod<T>::value, "only POD supported");
-        if( count == 0 )
-            return {};
-        assert(count <= (std::numeric_limits<size_t>::max() / sizeof(T)));
-        return static_cast<T*>(::calloc(count, sizeof(T)));
+        static_assert(is_byte_type<ByteType>::value, "need byte type");
+        return static_cast<ByteType*>(::realloc(p, count));
     }
 
-    template< typename T >
-    T* xcalloc(size_t count)
+    template< typename ByteType >
+    ByteType* xrealloc_bytes(ByteType* p, size_t count)
     {
-        T* p = calloc<T>(count);
+        p = realloc_bytes<ByteType>(p, count);
         if( count > 0 && p == nullptr )
             unexpected_memory_exhaustion();
         return p;
     }
 
-    template< typename T >
-    T* realloc(T* p, size_t count)
+    inline void* malloc(buffer_spec spec)
     {
-        static_assert(std::is_pod<T>::value, "only POD supported");
-        assert(count <= (std::numeric_limits<size_t>::max() / sizeof(T)));
-        return static_cast<T*>(::realloc(p, sizeof(T) * count));
-    }
-
-    template< typename T >
-    T* xrealloc(T* p, size_t count)
-    {
-        p = realloc<T>(p, count);
-        if( count > 0 && p == nullptr )
-            unexpected_memory_exhaustion();
-        return p;
-    }
-
-    template< typename T >
-    T* malloc_aligned(size_t alignment, size_t count)
-    {
-        static_assert(std::is_pod<T>::value, "only POD supported");
-        assert(is_pow2(alignment) && alignment >= alignof(T));
-        if( count == 0 )
+        if( spec.size == 0 )
             return {};
-        if( alignment <= alignof(max_align_t) )
-            return malloc<T>(count);
-        assert(count <= (std::numeric_limits<size_t>::max() / sizeof(T)));
+        assert(spec.is_valid());
+        if( spec.align <= alignof(max_align_t) )
+            return malloc_bytes<char>(spec.size);
         void* p = nullptr;
-        if( ::posix_memalign(&p, alignment, sizeof(T) * count) != 0 )
+        if( ::posix_memalign(&p, spec.align, spec.size) != 0 )
             return nullptr;
-        return static_cast<T*>(p);
+        return p;
     }
 
-    template< typename T >
-    T* xmalloc_aligned(size_t alignment, size_t count)
+    inline void* xmalloc(buffer_spec spec)
     {
-        T* p = malloc_aligned<T>(alignment, count);
-        if( count > 0 && p == nullptr )
+        void* p = malloc(spec);
+        if( spec.size > 0 && p == nullptr )
             unexpected_memory_exhaustion();
         return p;
     }
 
-    template< typename T >
-    T* calloc_aligned(size_t alignment, size_t count)
+    template< typename Pod >
+    Pod* malloc_copy(array_ref<const Pod> data)
     {
-        static_assert(std::is_pod<T>::value, "only POD supported");
-        assert(is_pow2(alignment) && alignment >= alignof(T));
-        if( count == 0 )
-            return {};
-        if( alignment <= alignof(max_align_t) )
-            return calloc<T>(count);
-        assert(count <= (std::numeric_limits<size_t>::max() / sizeof(T)));
-        void* p = nullptr;
-        if( ::posix_memalign(&p, alignment, sizeof(T) * count) != 0 )
-            return nullptr;
-        std::memset(p, 0, sizeof(T) * count);
-        return static_cast<T*>(p);
-    }
-
-    template< typename T >
-    T* xcalloc_aligned(size_t alignment, size_t count)
-    {
-        T* p = calloc_aligned<T>(alignment, count);
-        if( count > 0 && p == nullptr )
-            unexpected_memory_exhaustion();
-        return p;
-    }
-
-    template< typename T >
-    T* malloc_copy(array_ref<const T> data)
-    {
-        auto p = malloc<T>(data.size());
+        static_assert(std::is_pod<Pod>::value, "only POD supported");
+        auto p = malloc_bytes<char>(data.byte_size());
         if( p != nullptr )
             std::memcpy(p, data.data(), data.byte_size());
         return p;
     }
 
-    template< typename T >
-    T* xmalloc_copy(array_ref<const T> data)
+    template< typename Pod >
+    Pod* xmalloc_copy(array_ref<const Pod> data)
     {
-        auto p = malloc_copy<T>(data);
+        auto p = malloc_copy<Pod>(data);
         if( data.size() > 0 && p == nullptr )
             unexpected_memory_exhaustion();
         return p;
     }
 
-    inline void* malloc_buffer(buffer_spec spec)
+    template< typename Pod >
+    Pod* calloc(size_t count)
     {
-        return malloc_aligned<char>(spec.align, spec.size);
+        static_assert(std::is_pod<Pod>::value, "only POD supported");
+        if( count == 0 )
+            return {};
+        assert(count <= (std::numeric_limits<size_t>::max() / sizeof(Pod)));
+        return static_cast<Pod*>(::calloc(count, sizeof(Pod)));
     }
 
-    inline void* xmalloc_buffer(buffer_spec spec)
+    template< typename Pod >
+    Pod* xcalloc(size_t count)
     {
-        return xmalloc_aligned<char>(spec.align, spec.size);
-    }
-
-    inline void* calloc_buffer(buffer_spec spec)
-    {
-        return calloc_aligned<char>(spec.align, spec.size);
-    }
-
-    inline void* xcalloc_buffer(buffer_spec spec)
-    {
-        return xcalloc_aligned<char>(spec.align, spec.size);
+        Pod* p = calloc<Pod>(count);
+        if( count > 0 && p == nullptr )
+            unexpected_memory_exhaustion();
+        return p;
     }
 
 

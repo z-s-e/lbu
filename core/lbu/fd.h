@@ -5,8 +5,7 @@
 #ifndef LIBLBU_FD_H
 #define LIBLBU_FD_H
 
-#include "lbu/bit_ops.h"
-
+#include <cassert>
 #include <cerrno>
 #include <fcntl.h>
 #include <unistd.h>
@@ -39,7 +38,8 @@ namespace lbu {
             int oldflags = ::fcntl(value, F_GETFL, 0);
             if( oldflags == -1 )
                 return false;
-            return ::fcntl(value, F_SETFL, bit_ops::flag_set(oldflags, O_NONBLOCK, value)) != -1;
+            return ::fcntl(value, F_SETFL, value ? (oldflags | O_NONBLOCK)
+                                                 : (oldflags & (~O_NONBLOCK))) != -1;
         }
 
         inline bool is_cloexec()
@@ -53,7 +53,8 @@ namespace lbu {
             int oldflags = ::fcntl(value, F_GETFD, 0);
             if( oldflags == -1 )
                 return false;
-            return ::fcntl(value, F_SETFD, bit_ops::flag_set(oldflags, FD_CLOEXEC, value)) != -1;
+            return ::fcntl(value, F_SETFD, value ? (oldflags | FD_CLOEXEC)
+                                                 : (oldflags & (~FD_CLOEXEC))) != -1;
         }
     };
 

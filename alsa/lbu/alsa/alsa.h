@@ -101,23 +101,23 @@ namespace alsa {
     class pcm_format {
     public:
         pcm_format() = default;
-        pcm_format(snd_pcm_format_t type, int16_t channels, int32_t rate);
+        pcm_format(snd_pcm_format_t type, uint16_t channels, uint32_t rate);
         // default copy ctor/assignment ok
 
         snd_pcm_format_t type() const { return static_cast<snd_pcm_format_t>(m_type); }
-        int16_t channels() const { return m_channels; }
-        int32_t rate() const { return m_rate; }
+        uint16_t channels() const { return m_channels; }
+        uint32_t rate() const { return m_rate; }
 
-        int frame_native_byte_size() const { return native_byte_size(type()) * channels(); }
-        int frame_packed_byte_size() const { return packed_byte_size(type()) * channels(); }
+        unsigned frame_native_byte_size() const { return native_byte_size(type()) * channels(); }
+        unsigned frame_packed_byte_size() const { return packed_byte_size(type()) * channels(); }
 
-        static int native_byte_size(snd_pcm_format_t type);
-        static int packed_byte_size(snd_pcm_format_t type);
+        static unsigned native_byte_size(snd_pcm_format_t type);
+        static unsigned packed_byte_size(snd_pcm_format_t type);
 
     private:
         int16_t m_type = SND_PCM_FORMAT_UNKNOWN;
-        int16_t m_channels = 0;
-        int32_t m_rate = 0;
+        uint16_t m_channels = 0;
+        uint32_t m_rate = 0;
     };
 
 
@@ -337,11 +337,11 @@ namespace alsa {
         return *this;
     }
 
-    inline pcm_format::pcm_format(snd_pcm_format_t type, int16_t channels, int32_t rate)
+    inline pcm_format::pcm_format(snd_pcm_format_t type, uint16_t channels, uint32_t rate)
         : m_type(type), m_channels(channels), m_rate(rate)
     {}
 
-    inline int pcm_format::native_byte_size(snd_pcm_format_t type)
+    inline unsigned pcm_format::native_byte_size(snd_pcm_format_t type)
     {
         switch( type ) {
         case SND_PCM_FORMAT_S8:
@@ -384,7 +384,7 @@ namespace alsa {
         }
     }
 
-    inline int pcm_format::packed_byte_size(snd_pcm_format_t type)
+    inline unsigned pcm_format::packed_byte_size(snd_pcm_format_t type)
     {
         switch( type ) {
         case SND_PCM_FORMAT_S8:
@@ -541,19 +541,19 @@ namespace alsa {
     }
 
     template<>
-    int16_t pcm_buffer::channel_iter::read<int16_t>(snd_pcm_format_t type) const
+    inline int16_t pcm_buffer::channel_iter::read<int16_t>(snd_pcm_format_t type) const
     {
         return read_i16(type);
     }
 
     template<>
-    int32_t pcm_buffer::channel_iter::read<int32_t>(snd_pcm_format_t type) const
+    inline int32_t pcm_buffer::channel_iter::read<int32_t>(snd_pcm_format_t type) const
     {
         return read_i32(type);
     }
 
     template<>
-    float pcm_buffer::channel_iter::read<float>(snd_pcm_format_t type) const
+    inline float pcm_buffer::channel_iter::read<float>(snd_pcm_format_t type) const
     {
         return read_f(type);
     }
@@ -631,19 +631,19 @@ namespace alsa {
     }
 
     template<>
-    void pcm_buffer::channel_iter::write<int16_t>(int16_t value, snd_pcm_format_t type)
+    inline void pcm_buffer::channel_iter::write<int16_t>(int16_t value, snd_pcm_format_t type)
     {
         write_i16(value, type);
     }
 
     template<>
-    void pcm_buffer::channel_iter::write<int32_t>(int32_t value, snd_pcm_format_t type)
+    inline void pcm_buffer::channel_iter::write<int32_t>(int32_t value, snd_pcm_format_t type)
     {
         write_i32(value, type);
     }
 
     template<>
-    void pcm_buffer::channel_iter::write<float>(float value, snd_pcm_format_t type)
+    inline void pcm_buffer::channel_iter::write<float>(float value, snd_pcm_format_t type)
     {
         write_f(value, type);
     }

@@ -112,7 +112,8 @@ array_ref<const void> ring_spsc::input_stream::next_buffer(Mode mode)
     if( statusFlags )
         return {};
 
-    auto s = d.shared;
+    ring_spsc_shared_data* const s = d.shared;
+    assert(s != nullptr);
     const auto n = d.ringSize;
     const auto segmentLimit = d.segmentLimit;
     const fd f = d.filedes;
@@ -386,15 +387,16 @@ struct ring_spsc_basic_controller::internal {
 ring_spsc_basic_controller::ring_spsc_basic_controller(uint32_t bufsize)
 {
     const auto align = memory_interference_alignment();
-    const auto padded = align_up(sizeof(internal), align);
     bufsize = std::min<uint32_t>(bufsize, alg::max_size());
     assert(bufsize > 0);
-    char* p = xmalloc_aligned<char>(align, padded + bufsize);
-    d = reinterpret_cast<internal*>(p);
+    dynamic_struct s;
+    s.add_member<internal>(1, align);
+    auto buffer_offset = s.add_member_raw({bufsize, align});
+    void* p = xmalloc(s.storage());
 
-    new (d) internal;
+    d = new (p) internal;
     d->bufsize = bufsize;
-    d->buf = p + padded;
+    d->buf = static_cast<char*>(s.resolve(p, buffer_offset));
 
     auto efd = ring_spsc_shared_data::open_event_fd();
     if( efd.status != event_fd::OpenNoError)

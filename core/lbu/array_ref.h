@@ -202,6 +202,18 @@ namespace lbu {
         size_type n = 0;
     };
 
+    inline bool buffer_can_hold(array_ref<const void> buffer, buffer_spec spec)
+    {
+        return buffer.byte_size() >= spec.size && is_aligned(buffer.data(), spec.align);
+    }
+
+    inline array_ref<void> array_ref_resolve_dynamic(dynamic_struct s, void* ptr,
+                                                     dynamic_struct::member_offset<void> off,
+                                                     size_t bytes)
+    {
+        return array_ref<char>(static_cast<char*>(s.resolve(ptr, off)), bytes);
+    }
+
 
 } // namespace lbu
 

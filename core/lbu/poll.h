@@ -219,17 +219,21 @@ namespace poll {
         return ppoll(fds.data(), fds.size(), timeout, sigmask);
     }
 
-    inline bool wait_for_event(fd f, short flags)
+    inline bool wait_for_event(pollfd p)
     {
-        auto p = poll_fd(f, flags);
         while( true ) {
             int c = ::poll(&p, 1, NoTimeout.count());
             if( c == 1 )
-                return (flags & p.revents);
+                return (p.events & p.revents);
             if( c == -1 && errno == EINTR)
                 continue;
             return false;
         }
+    }
+
+    inline bool wait_for_event(fd f, short flags)
+    {
+        return wait_for_event(poll_fd(f, flags));
     }
 
 } // namespace poll

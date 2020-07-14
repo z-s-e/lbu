@@ -219,8 +219,8 @@ namespace algorithm {
             void publish(SizeType count);
 
             SizeType last_available() const;
-            array_ref<T> continuous_range();
-            std::pair<array_ref<T>, array_ref<T>> ranges();
+            array_ref<T, SizeType> continuous_range();
+            std::pair<array_ref<T, SizeType>, array_ref<T, SizeType>> ranges();
 
             array_ref<T, SizeType> buffer() const { return d.buffer; }
 
@@ -246,8 +246,8 @@ namespace algorithm {
             void release(SizeType count);
 
             SizeType last_available() const;
-            array_ref<T> continuous_range();
-            std::pair<array_ref<T>, array_ref<T>> ranges();
+            array_ref<T, SizeType> continuous_range();
+            std::pair<array_ref<T, SizeType>, array_ref<T, SizeType>> ranges();
 
             array_ref<T, SizeType> buffer() const { return d.buffer; }
 
@@ -303,14 +303,14 @@ namespace algorithm {
     }
 
     template< class T, class SizeType, class BufferAlg >
-    inline array_ref<T> handle<T, SizeType, BufferAlg>::producer::continuous_range()
+    inline array_ref<T, SizeType> handle<T, SizeType, BufferAlg>::producer::continuous_range()
     {
         const auto off = BufferAlg::offset(d.localProducerIndex, d.buffer.size());
         return {d.buffer.begin() + off, algorithm::continuous_slots(off, last_available(), d.buffer.size())};
     }
 
     template< class T, class SizeType, class BufferAlg >
-    inline std::pair<array_ref<T>, array_ref<T>> handle<T, SizeType, BufferAlg>::producer::ranges()
+    inline std::pair<array_ref<T, SizeType>, array_ref<T, SizeType>> handle<T, SizeType, BufferAlg>::producer::ranges()
     {
         const auto n = d.buffer.size();
         return algorithm::ranges(d.buffer.begin(),
@@ -357,14 +357,14 @@ namespace algorithm {
     }
 
     template< class T, class SizeType, class BufferAlg >
-    inline array_ref<T> handle<T, SizeType, BufferAlg>::consumer::continuous_range()
+    inline array_ref<T, SizeType> handle<T, SizeType, BufferAlg>::consumer::continuous_range()
     {
         const auto off = BufferAlg::offset(d.localConsumerIndex, d.buffer.size());
         return {d.buffer.begin() + off, algorithm::continuous_slots(off, last_available(), d.buffer.size())};
     }
 
     template< class T, class SizeType, class BufferAlg >
-    inline std::pair<array_ref<T>, array_ref<T>> handle<T, SizeType, BufferAlg>::consumer::ranges()
+    inline std::pair<array_ref<T, SizeType>, array_ref<T, SizeType>> handle<T, SizeType, BufferAlg>::consumer::ranges()
     {
         const auto n = d.buffer.size();
         return algorithm::ranges(d.buffer.begin(),

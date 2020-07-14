@@ -35,11 +35,11 @@ namespace stream {
     class ring_spsc {
     private:
         struct data {
-            ring_spsc_shared_data* shared = {};
+            ring_spsc_shared_data* shared = nullptr;
             uint32_t ringSize = 0;
             uint32_t segmentLimit = DefaultRingSegmentLimit;
             uint32_t lastIndex = 0;
-            fd filedes = {};
+            fd filedes;
         };
 
     public:
