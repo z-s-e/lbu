@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.13)
 project(lbu)
 
 set(LIBLBU_VERSION_MAJOR 0)
@@ -24,12 +24,14 @@ set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -Wall -Wextra -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Winit-self -Wmissing-declarations -Wmissing-include-dirs -Wold-style-cast -Woverloaded-virtual -Wredundant-decls -Wsign-conversion -Wsign-promo -Wstrict-overflow=5 -Wswitch-default -Wundef -Wno-unused -Wno-type-limits")
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
-
+set(LBU_WARNING_FLAGS "-pedantic -Wall -Wextra -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Winit-self -Wmissing-declarations -Wmissing-include-dirs -Wold-style-cast -Woverloaded-virtual -Wredundant-decls -Wsign-conversion -Wsign-promo -Wstrict-overflow=5 -Wundef -Wno-unused -Wno-type-limits")
 if(CMAKE_COMPILER_IS_GNUCXX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnoexcept -Wstrict-null-sentinel -Wlogical-op")
+    set(LBU_WARNING_FLAGS "${LBU_WARNING_FLAGS} -Wnoexcept -Wstrict-null-sentinel -Wlogical-op")
 endif()
+separate_arguments(LBU_WARNING_FLAGS)
+
+add_link_options("LINKER:-z,defs")
+
 
 # --- TARGETS
 
@@ -100,6 +102,7 @@ set_property(TARGET lbu_core
              ${CMAKE_CURRENT_BINARY_DIR}/include/lbu/lbu_global.h)
 
 target_compile_features(lbu_core PUBLIC cxx_std_17)
+target_compile_options(lbu_core PRIVATE ${LBU_WARNING_FLAGS})
 
 target_include_directories(lbu_core PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core>
@@ -143,6 +146,7 @@ if(LBU_BUILD_ALSA)
 
     pkg_check_modules(LIB_ALSA REQUIRED IMPORTED_TARGET alsa)
     target_link_libraries(lbu_alsa PUBLIC lbu_core PkgConfig::LIB_ALSA)
+    target_compile_options(lbu_alsa PRIVATE ${LBU_WARNING_FLAGS})
 
     target_include_directories(lbu_alsa PUBLIC
                             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/alsa>
