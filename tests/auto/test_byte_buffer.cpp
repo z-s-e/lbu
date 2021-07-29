@@ -1,4 +1,4 @@
-/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@googlemail.com>
+/* Copyright 2015-2017 Zeno Sebastian Endemann <zeno.endemann@mailbox.org>
  *
  * This file is part of the lbu library.
  *
