@@ -20,7 +20,8 @@ namespace lbu {
         static_assert(std::is_integral<IntType>::value, "Need int type");
         static_assert(std::is_unsigned<IntType>::value
                       || (std::numeric_limits<IntType>::max() + std::numeric_limits<IntType>::min() >= IntType(-1)), "Unsupported type");
-        return val < 0 ? typename std::make_unsigned<IntType>::type(-(val + 1)) + 1 : val;
+        using U = typename std::make_unsigned<IntType>::type;
+        return val < 0 ? U(-(val + 1)) + 1 : U(val);
     }
 
     template< typename IntType >
