@@ -18,19 +18,19 @@ set(CMAKECONFIG_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
 set(INCLUDE_IMPORT_DIR ${CMAKE_INSTALL_INCLUDEDIR})
 set(INCLUDE_INSTALL_DIR ${INCLUDE_IMPORT_DIR}/${PROJECT_NAME})
 
-find_package(PkgConfig REQUIRED)
-
-set(CMAKE_C_VISIBILITY_PRESET hidden)
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
-
 set(LBU_WARNING_FLAGS "-pedantic -Wall -Wextra -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Winit-self -Wmissing-declarations -Wmissing-include-dirs -Wold-style-cast -Woverloaded-virtual -Wredundant-decls -Wsign-conversion -Wsign-promo -Wstrict-overflow=5 -Wundef -Wno-unused -Wno-type-limits")
 if(CMAKE_COMPILER_IS_GNUCXX)
     set(LBU_WARNING_FLAGS "${LBU_WARNING_FLAGS} -Wnoexcept -Wstrict-null-sentinel -Wlogical-op")
 endif()
 separate_arguments(LBU_WARNING_FLAGS)
 
-add_link_options("LINKER:-z,defs")
+function(lbu_set_common_properties TARGET)
+    target_compile_options(${TARGET} PRIVATE ${LBU_WARNING_FLAGS})
+    set_property(TARGET ${TARGET} PROPERTY C_VISIBILITY_PRESET hidden)
+    set_property(TARGET ${TARGET} PROPERTY CXX_VISIBILITY_PRESET hidden)
+    set_property(TARGET ${TARGET} PROPERTY VISIBILITY_INLINES_HIDDEN ON)
+    target_link_options(${TARGET} PRIVATE "LINKER:-z,defs")
+endfunction()
 
 
 # --- TARGETS
@@ -102,7 +102,7 @@ set_property(TARGET lbu_core
              ${CMAKE_CURRENT_BINARY_DIR}/include/lbu/lbu_global.h)
 
 target_compile_features(lbu_core PUBLIC cxx_std_17)
-target_compile_options(lbu_core PRIVATE ${LBU_WARNING_FLAGS})
+lbu_set_common_properties(lbu_core)
 
 target_include_directories(lbu_core PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core>
@@ -130,6 +130,8 @@ set(lbu_alsa_hdr
 )
 
 if(LBU_BUILD_ALSA)
+    find_package(PkgConfig REQUIRED)
+
     if(LBU_BUILD_STATIC)
         add_library(lbu_alsa STATIC ${lbu_alsa_src})
     else()
@@ -144,9 +146,9 @@ if(LBU_BUILD_ALSA)
                 PROPERTY PUBLIC_HEADER
                 ${lbu_alsa_hdr})
 
-    pkg_check_modules(LIB_ALSA REQUIRED IMPORTED_TARGET alsa)
-    target_link_libraries(lbu_alsa PUBLIC lbu_core PkgConfig::LIB_ALSA)
-    target_compile_options(lbu_alsa PRIVATE ${LBU_WARNING_FLAGS})
+    pkg_check_modules(alsa REQUIRED IMPORTED_TARGET alsa)
+    target_link_libraries(lbu_alsa PUBLIC lbu_core PkgConfig::alsa)
+    lbu_set_common_properties(lbu_alsa)
 
     target_include_directories(lbu_alsa PUBLIC
                             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/alsa>
