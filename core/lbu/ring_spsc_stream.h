@@ -44,7 +44,7 @@ namespace stream {
 
     public:
 
-        static constexpr uint32_t DefaultRingSegmentLimit = (1 << 15);
+        static constexpr uint32_t DefaultRingSegmentLimit = (16 * 1024);
 
         class input_stream : public abstract_input_stream {
         public:
@@ -141,14 +141,13 @@ namespace stream {
 
     class ring_spsc_basic_controller {
     public:
-        static constexpr uint32_t DefaultRingBufferSize = 2 * ring_spsc::DefaultRingSegmentLimit;
+        static constexpr uint32_t DefaultRingBufferSize = 4 * ring_spsc::DefaultRingSegmentLimit;
 
         explicit LIBLBU_EXPORT ring_spsc_basic_controller(uint32_t bufsize = DefaultRingBufferSize);
 
         LIBLBU_EXPORT ~ring_spsc_basic_controller();
 
-        LIBLBU_EXPORT bool pair_streams(ring_spsc::output_stream* out,
-                                        ring_spsc::input_stream* in,
+        LIBLBU_EXPORT bool pair_streams(ring_spsc::output_stream* out, ring_spsc::input_stream* in,
                                         uint32_t segment_limit = ring_spsc::DefaultRingSegmentLimit);
 
         ring_spsc_basic_controller(const ring_spsc_basic_controller&) = delete;

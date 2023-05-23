@@ -76,7 +76,7 @@ ssize_t ring_spsc::input_stream::read_stream(array_ref<io::io_vector> buf_array,
 
     size_t count = bufferAvailable;
     if( count > 0 ) {
-        std::memcpy(buf_array[0].iov_base, bufferBase + bufferOffset, count);
+        std::memcpy(dst.data(), bufferBase + bufferOffset, count);
         advance_buffer(count);
         dst = dst.sub(count);
     }
@@ -320,7 +320,7 @@ array_ref<void> ring_spsc::output_stream::next_buffer(Mode mode)
     if( update_buffer_size(s, producerIdx, segmentLimit, n) )
         return current_buffer();
 
-    if( wakeConsumer == false ) {
+    if( ! wakeConsumer ) {
         if( ! producer_write(f) )
             goto error;
         if( update_buffer_size(s, producerIdx, segmentLimit, n) )
