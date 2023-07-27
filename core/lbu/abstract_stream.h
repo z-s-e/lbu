@@ -50,42 +50,43 @@ namespace stream {
         NonBlocking
     };
 
+
 namespace detail {
 
     class abstract_stream_base {
     protected:
-        abstract_stream_base(InternalBuffer bufferManagement)
-            : managesBuffer(bufferManagement == InternalBuffer::Yes) {}
+        abstract_stream_base(InternalBuffer internal_buffer)
+            : manages_buffer(internal_buffer == InternalBuffer::Yes) {}
 
-        bool buffer_management() const { return managesBuffer; }
+        bool buffer_management() const { return manages_buffer; }
 
         array_ref<char> current_buffer()
         {
-            return {bufferBase + bufferOffset, bufferAvailable};
+            return {buffer_base_ptr + buffer_offset, buffer_available};
         }
 
         void advance(size_t count)
         {
-            assert(count <= bufferAvailable);
-            bufferOffset += count;
-            bufferAvailable -= count;
+            assert(count <= buffer_available);
+            buffer_offset += count;
+            buffer_available -= count;
         }
 
-        char* bufferBase = {};
-        uint32_t bufferOffset = 0;
-        uint32_t bufferAvailable = 0;
+        char* buffer_base_ptr = {};
+        uint32_t buffer_offset = 0;
+        uint32_t buffer_available = 0;
 
         enum StatusFlags {
             StatusError = 1<<0,
             StatusEndOfStream = 1<<1
         };
-        uint8_t statusFlags = 0;
+        uint8_t status_flags = 0;
 
     private:
-        bool managesBuffer;
+        bool manages_buffer;
     };
 
-} // namespace detail
+}
 
 
     class abstract_input_stream : protected detail::abstract_stream_base {
@@ -102,10 +103,10 @@ namespace detail {
         /// error or end of stream (possibly 0). A negative return value signals a stream error.
         ssize_t read(void* buf, size_t size, Mode mode)
         {
-            if( bufferAvailable >= size && bufferAvailable > 0 ) {
+            if( buffer_available >= size && buffer_available > 0 ) {
                 assert(manages_buffer());
-                assert(bufferBase != nullptr);
-                std::memcpy(buf, bufferBase + bufferOffset, size);
+                assert(buffer_base_ptr != nullptr);
+                std::memcpy(buf, buffer_base_ptr + buffer_offset, size);
                 advance_buffer(size);
                 return ssize_t(size);
             }
@@ -145,7 +146,7 @@ namespace detail {
         array_ref<const void> get_buffer(Mode mode)
         {
             assert(manages_buffer());
-            if( bufferAvailable > 0 )
+            if( buffer_available > 0 )
                 return current_buffer();
             return get_read_buffer(mode);
         }
@@ -154,7 +155,7 @@ namespace detail {
         void advance_buffer(size_t count) { advance(count); }
 
         /// Move the internal buffer position to the buffer's end.
-        void advance_whole_buffer() { advance(bufferAvailable); }
+        void advance_whole_buffer() { advance(buffer_available); }
 
         /// Directly read from the stream.
         ///
@@ -175,21 +176,21 @@ namespace detail {
             return read_stream(buf_array, required_read);
         }
 
-        bool has_error() const { return (statusFlags & StatusError); }
-        bool at_end() const { return (statusFlags & StatusEndOfStream); }
+        bool has_error() const { return (status_flags & StatusError); }
+        bool at_end() const { return (status_flags & StatusEndOfStream); }
 
         abstract_input_stream(const abstract_input_stream&) = delete;
         abstract_input_stream& operator=(const abstract_input_stream&) = delete;
 
     protected:
-        abstract_input_stream(InternalBuffer bufferManagement) : abstract_stream_base(bufferManagement) {}
+        abstract_input_stream(InternalBuffer internal_buffer) : abstract_stream_base(internal_buffer) {}
 
         abstract_input_stream(abstract_input_stream&&) = default;
         abstract_input_stream& operator=(abstract_input_stream&&) = default;
 
         virtual ssize_t read_stream(array_ref<io::io_vector> buf_array,
                                     size_t required_read) = 0;
-        virtual LIBLBU_EXPORT array_ref<const void> get_read_buffer(Mode mode);
+        virtual array_ref<const void> LIBLBU_EXPORT get_read_buffer(Mode mode);
     };
 
 
@@ -213,10 +214,10 @@ namespace detail {
         /// error (possibly 0). A negative return value signals a stream error.
         ssize_t write(const void* buf, size_t size, Mode mode)
         {
-            if( bufferAvailable >= size && bufferAvailable > 0 ) {
+            if( buffer_available >= size && buffer_available > 0 ) {
                 assert(manages_buffer());
-                assert(bufferBase != nullptr);
-                std::memcpy(bufferBase + bufferOffset, buf, size);
+                assert(buffer_base_ptr != nullptr);
+                std::memcpy(buffer_base_ptr + buffer_offset, buf, size);
                 advance_buffer(size);
                 return ssize_t(size);
             }
@@ -269,7 +270,7 @@ namespace detail {
         array_ref<void> get_buffer(Mode mode)
         {
             assert(manages_buffer());
-            if( bufferAvailable > 0 )
+            if( buffer_available > 0 )
                 return current_buffer();
             return get_write_buffer(mode);
         }
@@ -278,7 +279,7 @@ namespace detail {
         void advance_buffer(size_t count) { advance(count); }
 
         /// Move the internal buffer position to the buffer's end.
-        void advance_whole_buffer() { advance(bufferAvailable); }
+        void advance_whole_buffer() { advance(buffer_available); }
 
         /// Directly write to the stream.
         ///
@@ -295,20 +296,20 @@ namespace detail {
             return write_stream(buf_array, mode);
         }
 
-        bool has_error() const { return (statusFlags & StatusError); }
+        bool has_error() const { return (status_flags & StatusError); }
 
         abstract_output_stream(const abstract_output_stream&) = delete;
         abstract_output_stream& operator=(const abstract_output_stream&) = delete;
 
     protected:
-        abstract_output_stream(InternalBuffer bufferManagement) : abstract_stream_base(bufferManagement) {}
+        abstract_output_stream(InternalBuffer internal_buffer) : abstract_stream_base(internal_buffer) {}
 
         abstract_output_stream(abstract_output_stream&&) = default;
         abstract_output_stream& operator=(abstract_output_stream&&) = default;
 
         virtual ssize_t write_stream(array_ref<io::io_vector> buf_array, Mode mode) = 0;
-        virtual LIBLBU_EXPORT array_ref<void> get_write_buffer(Mode mode);
-        virtual LIBLBU_EXPORT bool write_buffer_flush(Mode mode);
+        virtual array_ref<void> LIBLBU_EXPORT get_write_buffer(Mode mode);
+        virtual bool LIBLBU_EXPORT write_buffer_flush(Mode mode);
     };
 
 
@@ -387,7 +388,7 @@ namespace detail {
         size_t left;
     };
 
-} // namespace stream
-} // namespace lbu
+}
+}
 
-#endif // LIBLBU_ABSTRACT_STREAM_H
+#endif

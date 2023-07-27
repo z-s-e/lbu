@@ -159,7 +159,7 @@ namespace ascii {
 
         using U = typename std::make_unsigned<T>::type;
 
-        U absVal = 0;
+        U abs_val = 0;
         const char* c = str;
         if( c == nullptr )
             return false;
@@ -182,29 +182,29 @@ namespace ascii {
                 ++c;
         }
 
-        const U absValMax = neg ? abs(std::numeric_limits<T>::min())
-                                : std::numeric_limits<T>::max();
+        const U abs_val_max = neg ? abs(std::numeric_limits<T>::min())
+                                  : std::numeric_limits<T>::max();
 
         while( *c ) {
             if( ! is_digit(*c) )
                 return false;
 
             int v = *c - 0x30;
-            if( (absValMax / 10) < absVal )
+            if( (abs_val_max / 10) < abs_val )
                 return false;
-            absVal *= 10;
-            if( absValMax - v < absVal )
+            abs_val *= 10;
+            if( abs_val_max - v < abs_val )
                 return false;
-            absVal += v;
+            abs_val += v;
 
             ++c;
         }
 
-        if( absVal == 0 && neg && nz == NegativeZero::Reject )
+        if( abs_val == 0 && neg && nz == NegativeZero::Reject )
             return false;
 
         if( result )
-            *result = neg ? -T(absVal) : absVal;
+            *result = neg ? -T(abs_val) : abs_val;
         return true;
     }
 
@@ -235,7 +235,8 @@ namespace ascii {
 
         begin = p - d;
     }
+
 }
 }
 
-#endif // LIBLBU_ASCII_H
+#endif

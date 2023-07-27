@@ -19,32 +19,32 @@ byte_buffer_input_stream::~byte_buffer_input_stream()
 
 void byte_buffer_input_stream::reset(array_ref<void> buf)
 {
-    bufferBase = static_cast<char*>(buf.data());
-    bufferOffset = 0;
+    buffer_base_ptr = static_cast<char*>(buf.data());
+    buffer_offset = 0;
     if( buf.byte_size() <= std::numeric_limits<uint32_t>::max() ) {
-        bufferAvailable = buf.byte_size();
-        statusFlags = 0;
+        buffer_available = buf.byte_size();
+        status_flags = 0;
     } else {
-        bufferAvailable = 0;
-        statusFlags = StatusError;
+        buffer_available = 0;
+        status_flags = StatusError;
     }
 }
 
 ssize_t byte_buffer_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t)
 {
-    const ssize_t r = bufferAvailable;
+    const ssize_t r = buffer_available;
     if( r > 0 ) {
-        std::memcpy(buf_array[0].iov_base, bufferBase + bufferOffset, bufferAvailable);
-        bufferAvailable = 0;
+        std::memcpy(buf_array[0].iov_base, buffer_base_ptr + buffer_offset, buffer_available);
+        buffer_available = 0;
     }
 
-    statusFlags = StatusEndOfStream;
+    status_flags = StatusEndOfStream;
     return r;
 }
 
 array_ref<const void> byte_buffer_input_stream::get_read_buffer(Mode)
 {
-    statusFlags = StatusEndOfStream;
+    status_flags = StatusEndOfStream;
     return {};
 }
 
@@ -62,17 +62,17 @@ void byte_buffer_output_stream::reset(byte_buffer &&buf)
 {
     buffer = std::move(buf);
     sync_state();
-    statusFlags = 0;
+    status_flags = 0;
 }
 
 ssize_t byte_buffer_output_stream::write_stream(array_ref<io::io_vector> buf_array, Mode)
 {
-    if( statusFlags )
+    if( status_flags )
         return -1;
-    buffer.append_commit(bufferOffset - buffer.size());
+    buffer.append_commit(buffer_offset - buffer.size());
     const auto buf = io::io_vec_to_array_ref(buf_array[0]);
     if( buffer.max_size() - buffer.size() > buf.byte_size() ) {
-        statusFlags = StatusError;
+        status_flags = StatusError;
         return -1;
     }
     buffer.append(buf);
@@ -82,28 +82,28 @@ ssize_t byte_buffer_output_stream::write_stream(array_ref<io::io_vector> buf_arr
 
 array_ref<void> byte_buffer_output_stream::get_write_buffer(Mode)
 {
-    if( statusFlags )
+    if( status_flags )
         return {};
     buffer.auto_grow_reserve();
     sync_state();
-    if( bufferAvailable == 0 )
-        statusFlags = StatusError;
+    if( buffer_available == 0 )
+        status_flags = StatusError;
     return current_buffer();
 }
 
 bool byte_buffer_output_stream::write_buffer_flush(Mode)
 {
-    if( statusFlags )
+    if( status_flags )
         return false;
-    buffer.append_commit(bufferOffset - buffer.size());
+    buffer.append_commit(buffer_offset - buffer.size());
     return true;
 }
 
 void byte_buffer_output_stream::sync_state()
 {
-    bufferBase = static_cast<char*>(buffer.data());
-    bufferOffset = buffer.size();
-    bufferAvailable = buffer.capacity() - buffer.size();
+    buffer_base_ptr = static_cast<char*>(buffer.data());
+    buffer_offset = buffer.size();
+    buffer_available = buffer.capacity() - buffer.size();
 }
 
 

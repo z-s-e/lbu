@@ -125,9 +125,6 @@ namespace lbu {
     // dynamic data
 
     struct buffer_spec {
-        buffer_spec() = default;
-        buffer_spec(size_t byte_size, size_t alignment) : size(byte_size), align(alignment) {}
-
         size_t size = 0;
         size_t align = 1;
 
@@ -213,6 +210,6 @@ namespace lbu {
     template<> struct is_byte_type<unsigned char> : std::true_type {};
     template<> struct is_byte_type<std::byte> : std::true_type {};
 
-} // namespace lbu
+}
 
-#endif // LIBLBU_MEMORY_H
+#endif

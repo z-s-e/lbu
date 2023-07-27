@@ -69,8 +69,7 @@ namespace event_fd {
         return io::write(f, array_ref<char>(reinterpret_cast<char*>(&src), sizeof(src))).status;
     }
 
-} // namespace event_fd
-} // namespace lbu
+}
+}
 
-#endif // LIBLBU_EVENTFD_H
-
+#endif

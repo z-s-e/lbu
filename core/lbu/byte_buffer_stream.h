@@ -16,11 +16,11 @@ namespace stream {
         explicit LIBLBU_EXPORT byte_buffer_input_stream(array_ref<void> buf = {});
         LIBLBU_EXPORT ~byte_buffer_input_stream() override;
 
-        LIBLBU_EXPORT void reset(array_ref<void> buf);
+        void LIBLBU_EXPORT reset(array_ref<void> buf);
 
     protected:
-        LIBLBU_EXPORT ssize_t read_stream(array_ref<io::io_vector> buf_array, size_t required_read) override;
-        LIBLBU_EXPORT array_ref<const void> get_read_buffer(Mode mode) override;
+        ssize_t LIBLBU_EXPORT read_stream(array_ref<io::io_vector> buf_array, size_t required_read) override;
+        array_ref<const void> LIBLBU_EXPORT get_read_buffer(Mode mode) override;
 
         byte_buffer_input_stream(byte_buffer_input_stream&&) = default;
         byte_buffer_input_stream& operator=(byte_buffer_input_stream&&) = default;
@@ -32,7 +32,7 @@ namespace stream {
         LIBLBU_EXPORT byte_buffer_output_stream();
         LIBLBU_EXPORT ~byte_buffer_output_stream() override;
 
-        LIBLBU_EXPORT void reset(byte_buffer&& buf);
+        void LIBLBU_EXPORT reset(byte_buffer&& buf);
         byte_buffer release_reset(byte_buffer&& buf = {})
         {
             auto b = std::move(buffer);
@@ -41,9 +41,9 @@ namespace stream {
         }
 
     protected:
-        LIBLBU_EXPORT ssize_t write_stream(array_ref<io::io_vector> buf_array, Mode mode) override;
-        LIBLBU_EXPORT array_ref<void> get_write_buffer(Mode mode) override;
-        LIBLBU_EXPORT bool write_buffer_flush(Mode mode) override;
+        ssize_t LIBLBU_EXPORT write_stream(array_ref<io::io_vector> buf_array, Mode mode) override;
+        array_ref<void> LIBLBU_EXPORT get_write_buffer(Mode mode) override;
+        bool LIBLBU_EXPORT write_buffer_flush(Mode mode) override;
 
         byte_buffer_output_stream(byte_buffer_output_stream&&) = default;
         byte_buffer_output_stream& operator=(byte_buffer_output_stream&&) = default;
@@ -54,7 +54,7 @@ namespace stream {
         byte_buffer buffer;
     };
 
-} // namespace stream
-} // namespace lbu
+}
+}
 
-#endif // LIBLBU_BYTE_BUFFER_STREAM_H
+#endif

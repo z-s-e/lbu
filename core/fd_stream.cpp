@@ -36,8 +36,8 @@ fd_input_stream::fd_input_stream(array_ref<void> buffer,
                                  FdBlockingState b)
     : abstract_input_stream(buffer ? InternalBuffer::Yes : InternalBuffer::No)
 {
-    bufferBase = static_cast<char*>(buffer.data());
-    bufferCapacity = std::min(buffer.byte_size(), size_t(std::numeric_limits<uint32_t>::max()));
+    buffer_base_ptr = static_cast<char*>(buffer.data());
+    buffer_capacity = std::min(buffer.byte_size(), size_t(std::numeric_limits<uint32_t>::max()));
     set_descriptor(f, b);
 }
 
@@ -48,11 +48,11 @@ fd_input_stream::~fd_input_stream()
 void fd_input_stream::set_descriptor(fd f, FdBlockingState b)
 {
     filedes = f;
-    fdBlocking = b;
+    fd_blocking = b;
     err = io::ReadNoError;
-    bufferAvailable = 0;
-    bufferOffset = 0;
-    statusFlags = 0;
+    buffer_available = 0;
+    buffer_offset = 0;
+    status_flags = 0;
 }
 
 ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t required_read)
@@ -61,45 +61,45 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
         return -1;
 
     const Mode mode = (required_read > 0) ? Mode::Blocking : Mode::NonBlocking;
-    update_blocking(mode, &fdBlocking, filedes);
+    update_blocking(mode, &fd_blocking, filedes);
 
-    io::io_vector internalArray[2];
-    uint32_t bufferRead = 0;
+    io::io_vector internal_array[2];
+    uint32_t buffer_read = 0;
 
     if( manages_buffer() ) {
         assert(buf_array.size() == 1);
-        bufferRead = bufferAvailable;
-        assert(buf_array[0].iov_len > bufferRead);
-        if( bufferRead > 0 ) {
-            std::memcpy(buf_array[0].iov_base, bufferBase + bufferOffset, bufferRead);
-            buf_array = io::io_vector_array_advance(buf_array, bufferRead);
-            bufferAvailable = 0;
+        buffer_read = buffer_available;
+        assert(buf_array[0].iov_len > buffer_read);
+        if( buffer_read > 0 ) {
+            std::memcpy(buf_array[0].iov_base, buffer_base_ptr + buffer_offset, buffer_read);
+            buf_array = io::io_vector_array_advance(buf_array, buffer_read);
+            buffer_available = 0;
             if( required_read > 0 ) {
-                assert(required_read > bufferRead);
-                required_read -= bufferRead;
+                assert(required_read > buffer_read);
+                required_read -= buffer_read;
             }
         }
 
-        if( buf_array[0].iov_len <= bufferCapacity) {
+        if( buf_array[0].iov_len <= buffer_capacity) {
             // Only fill the internal buffer if the requested read size fits in the buffer.
             // Rationale: It is likely that the user will continue reading in large blocks,
             //            where using the internal buffer might be actually worse for
             //            performance (though it might not matter much...)
-            internalArray[0] = buf_array[0];
-            internalArray[1] = io::io_vec(bufferBase, bufferCapacity);
-            buf_array = array_ref<io::io_vector>(internalArray);
+            internal_array[0] = buf_array[0];
+            internal_array[1] = io::io_vec(buffer_base_ptr, buffer_capacity);
+            buf_array = array_ref<io::io_vector>(internal_array);
         }
     } else if( buf_array.size() == 0 ) {
         if( mode == Mode::Blocking ) {
             err = io::ReadBadRequest;
-            statusFlags = StatusError;
+            status_flags = StatusError;
             return -1;
         } else {
             return 0;
         }
     }
 
-    const size_t firstReadRequest = buf_array[0].iov_len;
+    const size_t first_read_request = buf_array[0].iov_len;
 
     size_t count = 0;
     while( true ) {
@@ -112,33 +112,33 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
                 continue;
             }
 
-            if( manages_buffer() && count > firstReadRequest ) {
-                bufferOffset = 0;
-                bufferAvailable = uint32_t(count - firstReadRequest);
-                return ssize_t(firstReadRequest + bufferRead);
+            if( manages_buffer() && count > first_read_request ) {
+                buffer_offset = 0;
+                buffer_available = uint32_t(count - first_read_request);
+                return ssize_t(first_read_request + buffer_read);
             }
 
-            return ssize_t(count + bufferRead);
+            return ssize_t(count + buffer_read);
         } else if( r.size == 0 ) {
             if( mode == Mode::Blocking ) {
                 if( io::io_vector_array_has_zero_size(buf_array) ) {
                     err = io::ReadBadRequest;
-                    statusFlags = StatusError;
+                    status_flags = StatusError;
                     return -1;
                 } else {
-                    statusFlags = StatusEndOfStream;
-                    return ssize_t(count + bufferRead);
+                    status_flags = StatusEndOfStream;
+                    return ssize_t(count + buffer_read);
                 }
             } else {
                 if( ! io::io_vector_array_has_zero_size(buf_array) )
-                    statusFlags = StatusEndOfStream;
-                return bufferRead;
+                    status_flags = StatusEndOfStream;
+                return buffer_read;
             }
         } else if( r.status == io::ReadWouldBlock && mode == Mode::NonBlocking ) {
-            return bufferRead;
+            return buffer_read;
         } else {
             err = r.status;
-            statusFlags = StatusError;
+            status_flags = StatusError;
             return -1;
         }
     }
@@ -148,19 +148,19 @@ array_ref<const void> fd_input_stream::get_read_buffer(Mode mode)
 {
     if( has_error() )
         return {};
-    update_blocking(mode, &fdBlocking, filedes);
+    update_blocking(mode, &fd_blocking, filedes);
 
-    const auto r = io::read(filedes, array_ref<char>(bufferBase, bufferCapacity));
+    const auto r = io::read(filedes, array_ref<char>(buffer_base_ptr, buffer_capacity));
     if( r.size > 0 ) {
-        bufferOffset = 0;
-        bufferAvailable = uint32_t(r.size);
+        buffer_offset = 0;
+        buffer_available = uint32_t(r.size);
         return current_buffer();
     } else if( r.size == 0 ) {
-        statusFlags = StatusEndOfStream;
+        status_flags = StatusEndOfStream;
     } else if( mode == Mode::NonBlocking && r.status == io::ReadWouldBlock ) {
     } else {
         err = r.status;
-        statusFlags = StatusError;
+        status_flags = StatusError;
     }
 
     return {};
@@ -171,8 +171,8 @@ fd_output_stream::fd_output_stream(array_ref<void> buffer,
                                    FdBlockingState b)
     : abstract_output_stream(buffer ? InternalBuffer::Yes : InternalBuffer::No)
 {
-    bufferBase = static_cast<char*>(buffer.data());
-    bufferCapacity = std::min(buffer.byte_size(), size_t(std::numeric_limits<uint32_t>::max()));
+    buffer_base_ptr = static_cast<char*>(buffer.data());
+    buffer_capacity = std::min(buffer.byte_size(), size_t(std::numeric_limits<uint32_t>::max()));
     set_descriptor(f, b);
 }
 
@@ -183,11 +183,11 @@ fd_output_stream::~fd_output_stream()
 void fd_output_stream::set_descriptor(fd f, FdBlockingState b)
 {
     filedes = f;
-    fdBlocking = b;
+    fd_blocking = b;
     err = io::WriteNoError;
     reset_buffer();
     if( ! f )
-        bufferAvailable = 0;
+        buffer_available = 0;
 }
 
 ssize_t fd_output_stream::write_stream(array_ref<io::io_vector> buf_array, Mode mode)
@@ -210,20 +210,19 @@ ssize_t fd_output_stream::write_fd(array_ref<io::io_vector> buf_array, Mode mode
 {
     if( has_error() )
         return -1;
-    update_blocking(mode, &fdBlocking, filedes);
+    update_blocking(mode, &fd_blocking, filedes);
 
-    io::io_vector internalArray[2];
-    uint32_t internalWriteSize = 0;
+    io::io_vector internal_array[2];
+    uint32_t internal_write_size = 0;
 
     if( manages_buffer() ) {
         assert(buf_array.size() == 1);
 
-        internalWriteSize = bufferOffset - bufferWriteOffset;
-        if( internalWriteSize > 0 ) {
-            internalArray[0] = io::io_vec(bufferBase + bufferWriteOffset,
-                                          internalWriteSize);
-            internalArray[1] = buf_array[0];
-            buf_array = array_ref<io::io_vector>(internalArray);
+        internal_write_size = buffer_offset - buffer_write_offset;
+        if( internal_write_size > 0 ) {
+            internal_array[0] = io::io_vec(buffer_base_ptr + buffer_write_offset, internal_write_size);
+            internal_array[1] = buf_array[0];
+            buf_array = array_ref<io::io_vector>(internal_array);
         }
     }
 
@@ -234,9 +233,9 @@ ssize_t fd_output_stream::write_fd(array_ref<io::io_vector> buf_array, Mode mode
         while( count < sum ) {
             const auto r = io::writev(filedes, buf_array);
             if( r.size < 0 ) {
-                statusFlags = StatusError;
+                status_flags = StatusError;
                 err = r.status;
-                bufferAvailable = 0;
+                buffer_available = 0;
                 return -1;
             }
             count += r.size;
@@ -246,24 +245,24 @@ ssize_t fd_output_stream::write_fd(array_ref<io::io_vector> buf_array, Mode mode
         if( manages_buffer() )
             reset_buffer();
 
-        return sum - internalWriteSize;
+        return sum - internal_write_size;
     } else {
         const auto r = io::writev(filedes, buf_array);
         if( r.size >= 0 ) {
-            if( r.size >= internalWriteSize ) {
+            if( r.size >= internal_write_size ) {
                 if( manages_buffer() )
                     reset_buffer();
-                return r.size - internalWriteSize;
+                return r.size - internal_write_size;
             } else {
-                bufferWriteOffset += r.size;
+                buffer_write_offset += r.size;
                 return 0;
             }
         } else if( r.status == io::WriteWouldBlock ) {
             return 0;
         } else {
-            statusFlags = StatusError;
+            status_flags = StatusError;
             err = r.status;
-            bufferAvailable = 0;
+            buffer_available = 0;
             return -1;
         }
     }
@@ -274,14 +273,14 @@ bool fd_output_stream::buffer_flush(Mode mode)
     auto b = io::io_vec(nullptr, 0);
     if( write_fd(array_ref_one_element(&b), mode) < 0 )
         return false;
-    return (bufferOffset == 0);
+    return (buffer_offset == 0);
 }
 
 void fd_output_stream::reset_buffer()
 {
-    bufferOffset = 0;
-    bufferWriteOffset = 0;
-    bufferAvailable = bufferCapacity;
+    buffer_offset = 0;
+    buffer_write_offset = 0;
+    buffer_available = buffer_capacity;
 }
 
 

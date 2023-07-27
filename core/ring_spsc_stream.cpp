@@ -56,17 +56,17 @@ void ring_spsc::input_stream::reset(array_ref<void> buffer,
                                     fd event_fd,
                                     ring_spsc_shared_data* s)
 {
-    bufferBase = static_cast<char*>(buffer.data());
+    buffer_base_ptr = static_cast<char*>(buffer.data());
     const auto n = uint32_t(std::min(buffer.byte_size(), alg::max_size()));
-    d.ringSize = n;
+    d.ring_size = n;
     d.shared = s;
     d.filedes = event_fd;
 
-    d.lastIndex = s->consumer_index.load(std::memory_order_relaxed);
-    bufferOffset = alg::offset(d.lastIndex, n);
-    update_buffer_size(s, d.lastIndex, d.segmentLimit, n);
+    d.last_index = s->consumer_index.load(std::memory_order_relaxed);
+    buffer_offset = alg::offset(d.last_index, n);
+    update_buffer_size(s, d.last_index, d.segment_limit, n);
 
-    statusFlags = 0;
+    status_flags = 0;
 }
 
 ssize_t ring_spsc::input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t required_read)
@@ -74,9 +74,9 @@ ssize_t ring_spsc::input_stream::read_stream(array_ref<io::io_vector> buf_array,
     const Mode mode = (required_read > 0) ? Mode::Blocking : Mode::NonBlocking;
     auto dst = io::io_vec_to_array_ref(buf_array[0]).array_static_cast<char>();
 
-    size_t count = bufferAvailable;
+    size_t count = buffer_available;
     if( count > 0 ) {
-        std::memcpy(dst.data(), bufferBase + bufferOffset, count);
+        std::memcpy(dst.data(), buffer_base_ptr + buffer_offset, count);
         advance_buffer(count);
         dst = dst.sub(count);
     }
@@ -108,83 +108,83 @@ array_ref<const void> ring_spsc::input_stream::get_read_buffer(Mode mode)
 
 array_ref<const void> ring_spsc::input_stream::next_buffer(Mode mode)
 {
-    assert(bufferAvailable == 0);
-    if( statusFlags )
+    assert(buffer_available == 0);
+    if( status_flags )
         return {};
 
     ring_spsc_shared_data* const s = d.shared;
     assert(s != nullptr);
-    const auto n = d.ringSize;
-    const auto segmentLimit = d.segmentLimit;
+    const auto n = d.ring_size;
+    const auto segment_limit = d.segment_limit;
     const fd f = d.filedes;
-    const auto count = bufferOffset - alg::offset(d.lastIndex, n);
-    const auto consumerIdx = alg::new_index(d.lastIndex, count, n);
+    const auto count = buffer_offset - alg::offset(d.last_index, n);
+    const auto consumer_idx = alg::new_index(d.last_index, count, n);
 
-    s->consumer_index.store(consumerIdx, std::memory_order_release);
-    d.lastIndex = consumerIdx;
-    bufferOffset = alg::offset(consumerIdx, n);
+    s->consumer_index.store(consumer_idx, std::memory_order_release);
+    d.last_index = consumer_idx;
+    buffer_offset = alg::offset(consumer_idx, n);
 
-    bool wakeProducer = count > 0;
-    if( wakeProducer && s->producer_wake.compare_exchange_strong(wakeProducer, false) ) {
+    bool wake_producer = count > 0;
+    if( wake_producer && s->producer_wake.compare_exchange_strong(wake_producer, false) ) {
         if( ! consumer_read(f) )
             goto error;
     }
 
-    if( update_buffer_size(s, consumerIdx, segmentLimit, n) )
+    if( update_buffer_size(s, consumer_idx, segment_limit, n) )
         return current_buffer();
 
-    if( ! wakeProducer ) {
+    if( ! wake_producer ) {
         if( ! consumer_read(f) )
             goto error;
-        if( update_buffer_size(s, consumerIdx, segmentLimit, n) )
+        if( update_buffer_size(s, consumer_idx, segment_limit, n) )
             return current_buffer();
     }
 
     s->consumer_wake.store(true);
 
-    if( update_buffer_size(s, consumerIdx, segmentLimit, n) || mode == Mode::NonBlocking )
+    if( update_buffer_size(s, consumer_idx, segment_limit, n) || mode == Mode::NonBlocking )
         return current_buffer();
 
     if( ! poll::wait_for_event(f, poll::FlagsReadReady) )
         goto error;
 
-    if( update_buffer_size(s, consumerIdx, segmentLimit, n) )
+    if( update_buffer_size(s, consumer_idx, segment_limit, n) )
         return current_buffer();
 
     if( ! consumer_read(f) )
         goto error;
 
-    if( update_buffer_size(s, consumerIdx, segmentLimit, n) )
+    if( update_buffer_size(s, consumer_idx, segment_limit, n) )
         return current_buffer();
 
     if( ! poll::wait_for_event(f, poll::FlagsReadReady) )
         goto error;
 
-    if( ! update_buffer_size(s, consumerIdx, segmentLimit, n) )
+    if( ! update_buffer_size(s, consumer_idx, segment_limit, n) )
         assert(false);
     return current_buffer();
 
 error:
-    statusFlags = StatusError;
+    status_flags = StatusError;
     return {};
 }
 
 bool ring_spsc::input_stream::update_buffer_size(ring_spsc_shared_data* shared,
                                                  uint32_t consumer_index,
-                                                 uint32_t segmentLimit,
-                                                 uint32_t ringSize)
+                                                 uint32_t segment_limit,
+                                                 uint32_t ring_size)
 {
     const auto producer_index = shared->producer_index.load(std::memory_order_acquire);
-    const auto n = ringSize;
+    const auto n = ring_size;
     auto b = continuous_slots(alg::offset(consumer_index, n),
                               alg::consumer_free_slots(producer_index, consumer_index, n),
                               n);
-    bufferAvailable = std::min(segmentLimit, b);
-    if( bufferAvailable == 0 && shared->eos.load(std::memory_order_acquire) ) {
-        statusFlags = StatusEndOfStream;
+    buffer_available = std::min(segment_limit, b);
+    if( buffer_available == 0 && shared->eos.load(std::memory_order_acquire) ) {
+        status_flags = StatusEndOfStream;
         return true;
     }
-    return bufferAvailable > 0;
+    return buffer_available > 0;
 }
 
 ring_spsc::output_stream::output_stream()
@@ -198,25 +198,25 @@ ring_spsc::output_stream::~output_stream()
 
 bool ring_spsc::output_stream::set_end_of_stream()
 {
-    if( statusFlags )
+    if( status_flags )
         return false;
 
     auto s = d.shared;
-    const auto n = d.ringSize;
+    const auto n = d.ring_size;
     const fd f = d.filedes;
-    const auto count = bufferOffset - alg::offset(d.lastIndex, n);
-    const auto producerIdx = alg::new_index(d.lastIndex, count, n);
+    const auto count = buffer_offset - alg::offset(d.last_index, n);
+    const auto producer_idx = alg::new_index(d.last_index, count, n);
 
-    s->producer_index.store(producerIdx, std::memory_order_release);
+    s->producer_index.store(producer_idx, std::memory_order_release);
 
-    bufferAvailable = 0;
+    buffer_available = 0;
 
     d.shared->eos.store(true, std::memory_order_release);
     if( ! producer_write(f) ) {
-        statusFlags = StatusError;
+        status_flags = StatusError;
         return false;
     }
-    statusFlags = StatusEndOfStream;
+    status_flags = StatusEndOfStream;
     return true;
 }
 
@@ -224,23 +224,23 @@ void ring_spsc::output_stream::reset(array_ref<void> buffer,
                                      fd event_fd,
                                      ring_spsc_shared_data* s)
 {
-    bufferBase = static_cast<char*>(buffer.data());
+    buffer_base_ptr = static_cast<char*>(buffer.data());
     const auto n = uint32_t(std::min(buffer.byte_size(), alg::max_size()));
-    d.ringSize = n;
+    d.ring_size = n;
     d.shared = s;
     d.filedes = event_fd;
 
-    d.lastIndex = s->producer_index.load(std::memory_order_relaxed);
-    bufferOffset = alg::offset(d.lastIndex, n);
-    update_buffer_size(s, d.lastIndex, d.segmentLimit, n);
+    d.last_index = s->producer_index.load(std::memory_order_relaxed);
+    buffer_offset = alg::offset(d.last_index, n);
+    update_buffer_size(s, d.last_index, d.segment_limit, n);
 
-    statusFlags = 0;
+    status_flags = 0;
 }
 
 ssize_t ring_spsc::output_stream::write_stream(array_ref<io::io_vector> buf_array, Mode mode)
 {
-    if( statusFlags ) {
-        statusFlags |= StatusError;
+    if( status_flags ) {
+        status_flags |= StatusError;
         return -1;
     }
 
@@ -294,81 +294,81 @@ bool ring_spsc::output_stream::write_buffer_flush(Mode)
 
 array_ref<void> ring_spsc::output_stream::next_buffer(Mode mode)
 {
-    if( statusFlags ) {
-        assert(bufferAvailable == 0);
-        statusFlags |= StatusError;
+    if( status_flags ) {
+        assert(buffer_available == 0);
+        status_flags |= StatusError;
         return {};
     }
 
     auto s = d.shared;
-    const auto n = d.ringSize;
-    const auto segmentLimit = d.segmentLimit;
+    const auto n = d.ring_size;
+    const auto segment_simit = d.segment_limit;
     const fd f = d.filedes;
-    const auto count = bufferOffset - alg::offset(d.lastIndex, n);
-    const auto producerIdx = alg::new_index(d.lastIndex, count, n);
+    const auto count = buffer_offset - alg::offset(d.last_index, n);
+    const auto producer_idx = alg::new_index(d.last_index, count, n);
 
-    s->producer_index.store(producerIdx, std::memory_order_release);
-    d.lastIndex = producerIdx;
-    bufferOffset = alg::offset(producerIdx, n);
+    s->producer_index.store(producer_idx, std::memory_order_release);
+    d.last_index = producer_idx;
+    buffer_offset = alg::offset(producer_idx, n);
 
-    bool wakeConsumer = count > 0;
-    if( wakeConsumer && s->consumer_wake.compare_exchange_strong(wakeConsumer, false) ) {
+    bool wake_consumer = count > 0;
+    if( wake_consumer && s->consumer_wake.compare_exchange_strong(wake_consumer, false) ) {
         if( ! producer_write(f) )
             goto error;
     }
 
-    if( update_buffer_size(s, producerIdx, segmentLimit, n) )
+    if( update_buffer_size(s, producer_idx, segment_simit, n) )
         return current_buffer();
 
-    if( ! wakeConsumer ) {
+    if( ! wake_consumer ) {
         if( ! producer_write(f) )
             goto error;
-        if( update_buffer_size(s, producerIdx, segmentLimit, n) )
+        if( update_buffer_size(s, producer_idx, segment_simit, n) )
             return current_buffer();
     }
 
     s->producer_wake.store(true);
 
-    if( update_buffer_size(s, producerIdx, segmentLimit, n) || mode == Mode::NonBlocking )
+    if( update_buffer_size(s, producer_idx, segment_simit, n) || mode == Mode::NonBlocking )
         return current_buffer();
 
     if( ! poll::wait_for_event(f, poll::FlagsWriteReady) )
         goto error;
 
-    if( update_buffer_size(s, producerIdx, segmentLimit, n) )
+    if( update_buffer_size(s, producer_idx, segment_simit, n) )
         return current_buffer();
 
     if( ! producer_write(f) )
         goto error;
 
-    if( update_buffer_size(s, producerIdx, segmentLimit, n) )
+    if( update_buffer_size(s, producer_idx, segment_simit, n) )
         return current_buffer();
 
     if( ! poll::wait_for_event(f, poll::FlagsWriteReady) )
         goto error;
 
-    if( ! update_buffer_size(s, producerIdx, segmentLimit, n) )
+    if( ! update_buffer_size(s, producer_idx, segment_simit, n) )
         assert(false);
     return current_buffer();
 
 error:
-    statusFlags = StatusError;
-    bufferAvailable = 0;
+    status_flags = StatusError;
+    buffer_available = 0;
     return {};
 }
 
 bool ring_spsc::output_stream::update_buffer_size(ring_spsc_shared_data* shared,
                                                   uint32_t producer_index,
-                                                  uint32_t segmentLimit,
-                                                  uint32_t ringSize)
+                                                  uint32_t segment_limit,
+                                                  uint32_t ring_size)
 {
     uint32_t consumer_index = shared->consumer_index.load(std::memory_order_acquire);
-    const auto n = ringSize;
+    const auto n = ring_size;
     auto b = continuous_slots(alg::offset(producer_index, n),
                               alg::producer_free_slots(producer_index, consumer_index, n),
                               n);
-    bufferAvailable = std::min(segmentLimit, b);
-    return bufferAvailable > 0;
+    buffer_available = std::min(segment_limit, b);
+    return buffer_available > 0;
 }
 
 event_fd::open_result ring_spsc_shared_data::open_event_fd()

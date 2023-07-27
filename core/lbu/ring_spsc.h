@@ -173,7 +173,7 @@ namespace algorithm {
         return { {begin + offset, first}, {begin, available - first} };
     }
 
-} // namespace algorithm
+}
 
 
     template< class T,
@@ -183,20 +183,20 @@ namespace algorithm {
     private:
         struct data {
             array_ref<T, SizeType> buffer;
-            SizeType localProducerIndex = 0;
-            SizeType localConsumerIndex = 0;
-            std::atomic<SizeType>* sharedProducerIndex = {};
-            std::atomic<SizeType>* sharedConsumerIndex = {};
+            SizeType local_producer_index = 0;
+            SizeType local_consumer_index = 0;
+            std::atomic<SizeType>* shared_producer_index = {};
+            std::atomic<SizeType>* shared_consumer_index = {};
 
             void reset(array_ref<T, SizeType> buf,
                        std::atomic<SizeType>* p,
                        std::atomic<SizeType>* c)
             {
                 buffer = buf;
-                sharedProducerIndex = p;
-                sharedConsumerIndex = c;
-                localProducerIndex = p->load();
-                localConsumerIndex = c->load();
+                shared_producer_index = p;
+                shared_consumer_index = c;
+                local_producer_index = p->load();
+                local_consumer_index = c->load();
             }
         };
 
@@ -284,28 +284,28 @@ namespace algorithm {
     template< class T, class SizeType, class BufferAlg >
     inline SizeType handle<T, SizeType, BufferAlg>::producer::update_available()
     {
-        d.localConsumerIndex = d.sharedConsumerIndex->load(std::memory_order_acquire);
+        d.local_consumer_index = d.shared_consumer_index->load(std::memory_order_acquire);
         return last_available();
     }
 
     template< class T, class SizeType, class BufferAlg >
     inline void handle<T, SizeType, BufferAlg>::producer::publish(SizeType count)
     {
-        const auto i = BufferAlg::new_index(d.localProducerIndex, count, d.buffer.size());
-        d.localProducerIndex = i;
-        d.sharedProducerIndex->store(i, std::memory_order_release);
+        const auto i = BufferAlg::new_index(d.local_producer_index, count, d.buffer.size());
+        d.local_producer_index = i;
+        d.shared_producer_index->store(i, std::memory_order_release);
     }
 
     template< class T, class SizeType, class BufferAlg >
     inline SizeType handle<T, SizeType, BufferAlg>::producer::last_available() const
     {
-        return BufferAlg::producer_free_slots(d.localProducerIndex, d.localConsumerIndex, d.buffer.size());
+        return BufferAlg::producer_free_slots(d.local_producer_index, d.local_consumer_index, d.buffer.size());
     }
 
     template< class T, class SizeType, class BufferAlg >
     inline array_ref<T, SizeType> handle<T, SizeType, BufferAlg>::producer::continuous_range()
     {
-        const auto off = BufferAlg::offset(d.localProducerIndex, d.buffer.size());
+        const auto off = BufferAlg::offset(d.local_producer_index, d.buffer.size());
         return {d.buffer.begin() + off, algorithm::continuous_slots(off, last_available(), d.buffer.size())};
     }
 
@@ -314,7 +314,7 @@ namespace algorithm {
     {
         const auto n = d.buffer.size();
         return algorithm::ranges(d.buffer.begin(),
-                                 BufferAlg::offset(d.localProducerIndex, n),
+                                 BufferAlg::offset(d.local_producer_index, n),
                                  last_available(), n);
     }
 
@@ -338,28 +338,28 @@ namespace algorithm {
     template< class T, class SizeType, class BufferAlg >
     inline SizeType handle<T, SizeType, BufferAlg>::consumer::update_available()
     {
-        d.localProducerIndex = d.sharedProducerIndex->load(std::memory_order_acquire);
+        d.local_producer_index = d.shared_producer_index->load(std::memory_order_acquire);
         return last_available();
     }
 
     template< class T, class SizeType, class BufferAlg >
     inline void handle<T, SizeType, BufferAlg>::consumer::release(SizeType count)
     {
-        const auto i = BufferAlg::new_index(d.localConsumerIndex, count, d.buffer.size());
-        d.localConsumerIndex = i;
-        d.sharedConsumerIndex->store(i, std::memory_order_release);
+        const auto i = BufferAlg::new_index(d.local_consumer_index, count, d.buffer.size());
+        d.local_consumer_index = i;
+        d.shared_consumer_index->store(i, std::memory_order_release);
     }
 
     template< class T, class SizeType, class BufferAlg >
     inline SizeType handle<T, SizeType, BufferAlg>::consumer::last_available() const
     {
-        return BufferAlg::consumer_free_slots(d.localProducerIndex, d.localConsumerIndex, d.buffer.size());
+        return BufferAlg::consumer_free_slots(d.local_producer_index, d.local_consumer_index, d.buffer.size());
     }
 
     template< class T, class SizeType, class BufferAlg >
     inline array_ref<T, SizeType> handle<T, SizeType, BufferAlg>::consumer::continuous_range()
     {
-        const auto off = BufferAlg::offset(d.localConsumerIndex, d.buffer.size());
+        const auto off = BufferAlg::offset(d.local_consumer_index, d.buffer.size());
         return {d.buffer.begin() + off, algorithm::continuous_slots(off, last_available(), d.buffer.size())};
     }
 
@@ -368,7 +368,7 @@ namespace algorithm {
     {
         const auto n = d.buffer.size();
         return algorithm::ranges(d.buffer.begin(),
-                                 BufferAlg::offset(d.localConsumerIndex, n),
+                                 BufferAlg::offset(d.local_consumer_index, n),
                                  last_available(), n);
     }
 
@@ -384,7 +384,7 @@ namespace algorithm {
         c->reset(buffer, producer_index, consumer_index);
     }
 
-} // namespace ring_spsc
-} // namespace lbu
+}
+}
 
-#endif // LIBLBU_RING_SPSC_H
+#endif

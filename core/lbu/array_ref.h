@@ -214,8 +214,6 @@ namespace lbu {
         return array_ref<char>(static_cast<char*>(s.resolve(ptr, off)), bytes);
     }
 
+}
 
-} // namespace lbu
-
-#endif // LIBLBU_ARRAY_REF_H
-
+#endif

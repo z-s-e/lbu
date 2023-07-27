@@ -14,12 +14,13 @@
 namespace lbu {
 
     struct fd {
-        fd() = default; // default copy ctor/assignment ok
+        int value = -1;
+
+        fd() = default;
         explicit fd(int filedes) : value(filedes) {}
+        // default copy ctor/assignment ok
 
         explicit operator bool() const { return value > -1; }
-
-        int value = -1;
 
         void close()
         {
@@ -62,14 +63,14 @@ namespace lbu {
     class unique_fd {
     public:
         unique_fd() = default;
-        explicit unique_fd(fd f) : data(f) {}
-        explicit unique_fd(int fildes) : data(fildes) {}
+        explicit unique_fd(fd f) : d(f) {}
+        explicit unique_fd(int fildes) : d(fildes) {}
         unique_fd(std::nullptr_t) {}
 
         unique_fd(unique_fd&& u)
         {
-            reset(u.data);
-            u.data = {};
+            reset(u.d);
+            u.d = {};
         }
 
         ~unique_fd() { reset(); }
@@ -82,43 +83,42 @@ namespace lbu {
 
         unique_fd& operator=(unique_fd&& u)
         {
-            reset(u.data);
-            u.data = {};
+            reset(u.d);
+            u.d = {};
             return *this;
         }
 
-        explicit operator bool() const { return bool(data); }
+        explicit operator bool() const { return bool(d); }
 
-        fd get() const { return data; }
+        fd get() const { return d; }
         fd operator*() const { return get(); }
 
         fd release()
         {
-            fd f = data;
-            data = {};
+            fd f = d;
+            d = {};
             return f;
         }
 
         void reset(fd f = {})
         {
-            if( data )
-                data.close();
-            data = f;
+            if( d )
+                d.close();
+            d = f;
         }
 
         void swap(unique_fd& u)
         {
-            std::swap(data.value, u.data.value);
+            std::swap(d.value, u.d.value);
         }
 
         unique_fd(const unique_fd&) = delete;
         unique_fd& operator=(const unique_fd&) = delete;
 
     private:
-        fd data;
+        fd d;
     };
 
-} // namespace lbu
+}
 
-#endif // LIBLBU_FD_H
-
+#endif

@@ -98,40 +98,23 @@ namespace alsa {
     };
 
 
-    class pcm_format {
-    public:
-        pcm_format() = default;
-        pcm_format(snd_pcm_format_t type, uint16_t channels, uint32_t rate);
-        // default copy ctor/assignment ok
+    struct pcm_format {
+        snd_pcm_format_t type = SND_PCM_FORMAT_UNKNOWN;
+        uint16_t channels = 0;
+        uint32_t rate = 0;
 
-        snd_pcm_format_t type() const { return static_cast<snd_pcm_format_t>(m_type); }
-        uint16_t channels() const { return m_channels; }
-        uint32_t rate() const { return m_rate; }
-
-        unsigned frame_native_byte_size() const { return native_byte_size(type()) * channels(); }
-        unsigned frame_packed_byte_size() const { return packed_byte_size(type()) * channels(); }
+        unsigned frame_native_byte_size() const { return native_byte_size(type) * channels; }
+        unsigned frame_packed_byte_size() const { return packed_byte_size(type) * channels; }
 
         static unsigned native_byte_size(snd_pcm_format_t type);
         static unsigned packed_byte_size(snd_pcm_format_t type);
-
-    private:
-        int16_t m_type = SND_PCM_FORMAT_UNKNOWN;
-        uint16_t m_channels = 0;
-        uint32_t m_rate = 0;
     };
 
 
-    class pcm_buffer {
-    public:
-        pcm_buffer() = default;
-        pcm_buffer(const snd_pcm_channel_area_t* areas,
-                   snd_pcm_uframes_t offset,
-                   snd_pcm_uframes_t frames);
-        // default copy ctor/assignment ok
-
-        const snd_pcm_channel_area_t* areas() const { return m_areas; }
-        snd_pcm_uframes_t offset() const { return m_offset; }
-        snd_pcm_uframes_t frames() const { return m_frames; }
+    struct pcm_buffer {
+        const snd_pcm_channel_area_t* areas = {};
+        snd_pcm_uframes_t offset = 0;
+        snd_pcm_uframes_t frames = 0;
 
         class channel_iter {
         public:
@@ -165,13 +148,6 @@ namespace alsa {
         };
 
         channel_iter begin(unsigned channel) const;
-
-    private:
-        friend class pcm_device;
-
-        const snd_pcm_channel_area_t* m_areas = {};
-        snd_pcm_uframes_t m_offset = 0;
-        snd_pcm_uframes_t m_frames = 0;
     };
 
 
@@ -198,18 +174,18 @@ namespace alsa {
         int open(const char* device_name, snd_pcm_stream_t dir, int flags = FlagsNone);
         void close();
 
-        bool is_valid() const { return m_handle; }
+        bool is_valid() const { return device_handle; }
         explicit operator bool() const { return is_valid(); }
 
-        snd_pcm_t* handle() const { return m_handle; }
+        snd_pcm_t* handle() const { return device_handle; }
 
         static pcm_buffer mmap_begin(snd_pcm_t* pcm, snd_pcm_uframes_t frames, int* error);
         static snd_pcm_sframes_t mmap_commit(snd_pcm_t* pcm, const pcm_buffer& buffer);
 
     private:
-        void cleanup() { if( m_handle ) snd_pcm_close(m_handle); }
+        void cleanup() { if( device_handle ) snd_pcm_close(device_handle); }
 
-        snd_pcm_t* m_handle = {};
+        snd_pcm_t* device_handle = {};
     };
 
 
@@ -337,10 +313,6 @@ namespace alsa {
         return *this;
     }
 
-    inline pcm_format::pcm_format(snd_pcm_format_t type, uint16_t channels, uint32_t rate)
-        : m_type(type), m_channels(channels), m_rate(rate)
-    {}
-
     inline unsigned pcm_format::native_byte_size(snd_pcm_format_t type)
     {
         switch( type ) {
@@ -428,21 +400,15 @@ namespace alsa {
         }
     }
 
-    inline pcm_buffer::pcm_buffer(const snd_pcm_channel_area_t* areas,
-                                  snd_pcm_uframes_t offset,
-                                  snd_pcm_uframes_t frames)
-        : m_areas(areas), m_offset(offset), m_frames(frames)
-    {}
-
     inline pcm_buffer::channel_iter pcm_buffer::begin(unsigned channel) const
     {
-        assert((m_areas[channel].first & 7) == 0);
-        assert((m_areas[channel].step & 7) == 0);
+        assert((areas[channel].first & 7) == 0);
+        assert((areas[channel].step & 7) == 0);
 
-        const unsigned stride = (m_areas[channel].step >> 3);
-        char* addr = static_cast<char*>(m_areas[channel].addr);
-        addr += (m_areas[channel].first >> 3);
-        addr += stride * m_offset;
+        const unsigned stride = (areas[channel].step >> 3);
+        char* addr = static_cast<char*>(areas[channel].addr);
+        addr += (areas[channel].first >> 3);
+        addr += stride * offset;
         return {addr, stride};
     }
 
@@ -650,7 +616,7 @@ namespace alsa {
 
     inline pcm_device::pcm_device(const char* device_name, snd_pcm_stream_t dir, int flags, int* error)
     {
-        int err = snd_pcm_open(&m_handle, device_name, dir, flags);
+        int err = snd_pcm_open(&device_handle, device_name, dir, flags);
         if( error )
             *error = err;
     }
@@ -658,30 +624,29 @@ namespace alsa {
     inline int pcm_device::open(const char* device_name, snd_pcm_stream_t dir, int flags)
     {
         cleanup();
-        return snd_pcm_open(&m_handle, device_name, dir, flags);
+        return snd_pcm_open(&device_handle, device_name, dir, flags);
     }
 
     inline void pcm_device::close()
     {
         cleanup();
-        m_handle = {};
+        device_handle = {};
     }
 
     inline pcm_buffer pcm_device::mmap_begin(snd_pcm_t* pcm, snd_pcm_uframes_t frames, int* error)
     {
         pcm_buffer buf;
-        buf.m_frames = frames;
-        *error = snd_pcm_mmap_begin(pcm, &buf.m_areas, &buf.m_offset, &buf.m_frames);
+        buf.frames = frames;
+        *error = snd_pcm_mmap_begin(pcm, &buf.areas, &buf.offset, &buf.frames);
         return buf;
     }
 
     inline snd_pcm_sframes_t pcm_device::mmap_commit(snd_pcm_t* pcm, const pcm_buffer& buffer)
     {
-        return snd_pcm_mmap_commit(pcm, buffer.offset(), buffer.frames());
+        return snd_pcm_mmap_commit(pcm, buffer.offset, buffer.frames);
     }
 
-} // namespace alsa
-} // namespace lbu
+}
+}
 
-#endif // LIBLBU_ALSA_H
-
+#endif

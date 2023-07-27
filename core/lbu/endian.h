@@ -204,6 +204,6 @@ namespace lbu {
         to_big_endian_u24_packed(value_reinterpret_cast<int32_t, uint32_t>(v), dst);
     }
 
-} // namespace lbu
+}
 
-#endif // LIBLBU_ENDIAN_H
+#endif

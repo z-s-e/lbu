@@ -236,8 +236,7 @@ namespace poll {
         return wait_for_event(poll_fd(f, flags));
     }
 
-} // namespace poll
-} // namespace lbu
+}
+}
 
-#endif // LIBLBU_POLL_H
-
+#endif

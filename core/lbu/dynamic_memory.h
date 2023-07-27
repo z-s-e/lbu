@@ -128,6 +128,6 @@ namespace lbu {
 
     using unique_cstr = unique_cpod<char>;
 
-} // namespace lbu
+}
 
-#endif // LIBLBU_DYNAMIC_MEMORY_H
+#endif

@@ -252,25 +252,25 @@ namespace lbu {
 
     inline array_ref<void> byte_buffer::insert_uninitialized(size_t index, size_t count)
     {
-        const auto oldSize = size();
-        assert(index <= oldSize);
-        assert(max_size() - oldSize >= count);
-        const auto newSize = oldSize + count;
+        const auto old_size = size();
+        assert(index <= old_size);
+        assert(max_size() - old_size >= count);
+        const auto new_size = old_size + count;
         char* c = char_data();
 
-        if( capacity() - oldSize >= count ) {
+        if( capacity() - old_size >= count ) {
             c += index;
-            std::memmove(c + count, c, oldSize - index);
-            set_size_checked(newSize);
+            std::memmove(c + count, c, old_size - index);
+            set_size_checked(new_size);
         } else {
-            const auto newCapacity = grow_capacity(newSize);
-            char* newData = xmalloc_bytes<char>(newCapacity);
-            char* newC = newData + index;
-            std::memcpy(newData, c, index);
-            std::memcpy(newC + count, c + index,  oldSize - index);
+            const auto new_capacity = grow_capacity(new_size);
+            char* new_data = xmalloc_bytes<char>(new_capacity);
+            char* new_c = new_data + index;
+            std::memcpy(new_data, c, index);
+            std::memcpy(new_c + count, c + index,  old_size - index);
             cleanup();
-            set_ext(newData, newSize, newCapacity);
-            c = newC;
+            set_ext(new_data, new_size, new_capacity);
+            c = new_c;
         }
         return array_ref<char>(c, count);
     }
@@ -313,14 +313,14 @@ namespace lbu {
 
     inline byte_buffer& byte_buffer::erase(size_t index, size_t count)
     {
-        const auto oldSize = size();
-        assert(index <= oldSize);
-        count = std::min(oldSize - index, count);
-        const auto secondIndex = index + count;
-        const auto newSize = oldSize - count;
+        const auto old_size = size();
+        assert(index <= old_size);
+        count = std::min(old_size - index, count);
+        const auto second_index = index + count;
+        const auto new_size = old_size - count;
         char* c = char_data();
-        std::memmove(c + index, c + secondIndex, oldSize - secondIndex);
-        d.ext.size = newSize;
+        std::memmove(c + index, c + second_index, old_size - second_index);
+        d.ext.size = new_size;
         return *this;
     }
 
@@ -439,28 +439,28 @@ namespace lbu {
 
     inline array_ref<void> byte_buffer::append_base(size_t count)
     {
-        const auto oldSize = size();
-        assert(max_size() - oldSize >= count);
-        const auto newSize = oldSize + count;
+        const auto old_size = size();
+        assert(max_size() - old_size >= count);
+        const auto new_size = old_size + count;
         char* c = char_data();
 
-        if( capacity() < newSize ) {
-            const auto newCapacity = grow_capacity(newSize);
-            char* newC;
+        if( capacity() < new_size ) {
+            const auto new_capacity = grow_capacity(new_size);
+            char* new_c;
 
             if( is_small() ) {
-                newC = xmalloc_bytes<char>(newCapacity);
-                std::memcpy(newC, c, oldSize);
+                new_c = xmalloc_bytes<char>(new_capacity);
+                std::memcpy(new_c, c, old_size);
             } else {
-                newC = xrealloc_bytes<char>(c, newCapacity);
+                new_c = xrealloc_bytes<char>(c, new_capacity);
             }
-            set_ext(newC, newSize, newCapacity);
-            c = newC;
+            set_ext(new_c, new_size, new_capacity);
+            c = new_c;
         } else {
-            set_size_checked(newSize);
+            set_size_checked(new_size);
         }
 
-        return array_ref<char>(c + oldSize, count);
+        return array_ref<char>(c + old_size, count);
     }
 
     inline void byte_buffer::cleanup()
@@ -487,6 +487,6 @@ namespace lbu {
         return std::max(cap * 2, size);
     }
 
-} // namespace lbu
+}
 
-#endif // LIBLBU_BYTE_BUFFER_H
+#endif

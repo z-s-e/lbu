@@ -26,24 +26,24 @@ namespace stream {
                                                FdBlockingState b = FdBlockingState::Unknown);
         LIBLBU_EXPORT ~fd_input_stream() override;
 
-        LIBLBU_EXPORT void set_descriptor(fd f, FdBlockingState b = FdBlockingState::Unknown);
+        void LIBLBU_EXPORT set_descriptor(fd f, FdBlockingState b = FdBlockingState::Unknown);
         fd descriptor() const { return filedes; }
 
         int status() const { return err; }
 
-        void* buffer_base() { return bufferBase; }
+        void* buffer_base() { return buffer_base_ptr; }
 
     protected:
-        LIBLBU_EXPORT ssize_t read_stream(array_ref<io::io_vector> buf_array, size_t required_read) override;
-        LIBLBU_EXPORT array_ref<const void> get_read_buffer(Mode mode) override;
+        ssize_t LIBLBU_EXPORT read_stream(array_ref<io::io_vector> buf_array, size_t required_read) override;
+        array_ref<const void> LIBLBU_EXPORT get_read_buffer(Mode mode) override;
 
         fd_input_stream(fd_input_stream&&) = default;
         fd_input_stream& operator=(fd_input_stream&&) = default;
 
     private:
-        FdBlockingState fdBlocking;
+        FdBlockingState fd_blocking;
         fd filedes;
-        uint32_t bufferCapacity;
+        uint32_t buffer_capacity;
         int err;
     };
 
@@ -55,17 +55,17 @@ namespace stream {
                                                 FdBlockingState b = FdBlockingState::Unknown);
         LIBLBU_EXPORT ~fd_output_stream() override;
 
-        LIBLBU_EXPORT void set_descriptor(fd f, FdBlockingState b = FdBlockingState::Unknown);
+        void LIBLBU_EXPORT set_descriptor(fd f, FdBlockingState b = FdBlockingState::Unknown);
         fd descriptor() const { return filedes; }
 
         int status() const { return err; }
 
-        void* buffer_base() { return bufferBase; }
+        void* buffer_base() { return buffer_base_ptr; }
 
     protected:
-        LIBLBU_EXPORT ssize_t write_stream(array_ref<io::io_vector> buf_array, Mode mode) override;
-        LIBLBU_EXPORT array_ref<void> get_write_buffer(Mode mode) override;
-        LIBLBU_EXPORT bool write_buffer_flush(Mode mode) override;
+        ssize_t LIBLBU_EXPORT write_stream(array_ref<io::io_vector> buf_array, Mode mode) override;
+        array_ref<void> LIBLBU_EXPORT get_write_buffer(Mode mode) override;
+        bool LIBLBU_EXPORT write_buffer_flush(Mode mode) override;
 
         fd_output_stream(fd_output_stream&&) = default;
         fd_output_stream& operator=(fd_output_stream&&) = default;
@@ -75,10 +75,10 @@ namespace stream {
         bool buffer_flush(Mode mode);
         void reset_buffer();
 
-        FdBlockingState fdBlocking;
+        FdBlockingState fd_blocking;
         fd filedes;
-        uint32_t bufferCapacity;
-        uint32_t bufferWriteOffset;
+        uint32_t buffer_capacity;
+        uint32_t buffer_write_offset;
         int err;
     };
 
@@ -92,7 +92,7 @@ namespace stream {
 
         LIBLBU_EXPORT ~socket_stream_pair();
 
-        LIBLBU_EXPORT unique_fd take_reset(unique_fd f = {},
+        unique_fd LIBLBU_EXPORT take_reset(unique_fd f = {},
                                            FdBlockingState b = FdBlockingState::Unknown);
 
         abstract_input_stream* input_stream() { return &in; }
@@ -120,7 +120,7 @@ namespace stream {
         }
         LIBLBU_EXPORT ~managed_fd_output_stream();
 
-        LIBLBU_EXPORT void reset(unique_fd f, FdBlockingState b = FdBlockingState::Unknown);
+        void LIBLBU_EXPORT reset(unique_fd f, FdBlockingState b = FdBlockingState::Unknown);
 
         abstract_output_stream* stream() { return &out; }
         fd descriptor() { return out.descriptor(); }
@@ -142,7 +142,7 @@ namespace stream {
         }
         LIBLBU_EXPORT ~managed_fd_input_stream();
 
-        LIBLBU_EXPORT void reset(unique_fd f, FdBlockingState b = FdBlockingState::Unknown);
+        void LIBLBU_EXPORT reset(unique_fd f, FdBlockingState b = FdBlockingState::Unknown);
 
         abstract_input_stream* stream() { return &in; }
         fd descriptor() { return in.descriptor(); }
@@ -152,7 +152,7 @@ namespace stream {
         fd_input_stream in;
     };
 
-} // namespace stream
-} // namespace lbu
+}
+}
 
-#endif // LIBLBU_FD_STREAM_H
+#endif

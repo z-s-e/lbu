@@ -86,9 +86,7 @@ namespace file {
         }
     }
 
+}
+}
 
-} // namespace file
-} // namespace lbu
-
-#endif // LIBLBU_FILE_H
-
+#endif

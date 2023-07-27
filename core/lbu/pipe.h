@@ -45,7 +45,7 @@ namespace pipe {
         return r;
     }
 
-} // namespace pipe
-} // namespace lbu
+}
+}
 
-#endif // LIBLBU_PIPE_H
+#endif

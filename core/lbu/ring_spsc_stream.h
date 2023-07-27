@@ -15,6 +15,12 @@ namespace lbu {
 namespace stream {
 
     struct ring_spsc_shared_data {
+        std::atomic<uint32_t> producer_index;
+        std::atomic<uint32_t> consumer_index;
+        std::atomic<bool> producer_wake;
+        std::atomic<bool> consumer_wake;
+        std::atomic<bool> eos;
+
         ring_spsc_shared_data()
             : producer_index(0)
             , consumer_index(0)
@@ -23,22 +29,16 @@ namespace stream {
             , eos(false)
         {}
 
-        LIBLBU_EXPORT static event_fd::open_result open_event_fd();
-
-        std::atomic<uint32_t> producer_index;
-        std::atomic<uint32_t> consumer_index;
-        std::atomic<bool> producer_wake;
-        std::atomic<bool> consumer_wake;
-        std::atomic<bool> eos;
+        static event_fd::open_result LIBLBU_EXPORT open_event_fd();
     };
 
     class ring_spsc {
     private:
         struct data {
-            ring_spsc_shared_data* shared = nullptr;
-            uint32_t ringSize = 0;
-            uint32_t segmentLimit = DefaultRingSegmentLimit;
-            uint32_t lastIndex = 0;
+            ring_spsc_shared_data* shared = {};
+            uint32_t ring_size = 0;
+            uint32_t segment_limit = DefaultRingSegmentLimit;
+            uint32_t last_index = 0;
             fd filedes;
         };
 
@@ -57,19 +57,19 @@ namespace stream {
 
             LIBLBU_EXPORT ~input_stream() override;
 
-            LIBLBU_EXPORT void reset(array_ref<void> buffer, fd event_fd, ring_spsc_shared_data* s);
+            void LIBLBU_EXPORT reset(array_ref<void> buffer, fd event_fd, ring_spsc_shared_data* s);
 
-            uint32_t segment_size_limit() const { return d.segmentLimit; }
+            uint32_t segment_size_limit() const { return d.segment_limit; }
             void set_segment_size_limit(uint32_t limit)
             {
-                d.segmentLimit = limit > 0 ? limit : 1;
+                d.segment_limit = limit > 0 ? limit : 1;
             }
 
             fd event_fd() const { return d.filedes; }
 
         protected:
-            LIBLBU_EXPORT ssize_t read_stream(array_ref<io::io_vector> buf_array, size_t required_read) override;
-            LIBLBU_EXPORT array_ref<const void> get_read_buffer(Mode mode) override;
+            ssize_t LIBLBU_EXPORT read_stream(array_ref<io::io_vector> buf_array, size_t required_read) override;
+            array_ref<const void> LIBLBU_EXPORT get_read_buffer(Mode mode) override;
 
             input_stream(input_stream&&) = default;
             input_stream& operator=(input_stream&&) = default;
@@ -77,7 +77,7 @@ namespace stream {
         private:
             array_ref<const void> next_buffer(Mode mode);
             bool update_buffer_size(ring_spsc_shared_data* shared, uint32_t consumer_index,
-                                    uint32_t segmentLimit, uint32_t ringSize);
+                                    uint32_t segment_limit, uint32_t ring_size);
 
             data d;
         };
@@ -94,22 +94,22 @@ namespace stream {
 
             LIBLBU_EXPORT ~output_stream() override;
 
-            LIBLBU_EXPORT bool set_end_of_stream();
+            bool LIBLBU_EXPORT set_end_of_stream();
 
-            LIBLBU_EXPORT void reset(array_ref<void> buffer, fd event_fd, ring_spsc_shared_data* s);
+            void LIBLBU_EXPORT reset(array_ref<void> buffer, fd event_fd, ring_spsc_shared_data* s);
 
-            uint32_t segment_size_limit() const { return d.segmentLimit; }
+            uint32_t segment_size_limit() const { return d.segment_limit; }
             void set_segment_size_limit(uint32_t limit)
             {
-                d.segmentLimit = limit > 0 ? limit : 1;
+                d.segment_limit = limit > 0 ? limit : 1;
             }
 
             fd event_fd() const { return d.filedes; }
 
         protected:
-            LIBLBU_EXPORT ssize_t write_stream(array_ref<io::io_vector> buf_array, Mode mode) override;
-            LIBLBU_EXPORT array_ref<void> get_write_buffer(Mode mode) override;
-            LIBLBU_EXPORT bool write_buffer_flush(Mode mode) override;
+            ssize_t LIBLBU_EXPORT write_stream(array_ref<io::io_vector> buf_array, Mode mode) override;
+            array_ref<void> LIBLBU_EXPORT get_write_buffer(Mode mode) override;
+            bool LIBLBU_EXPORT write_buffer_flush(Mode mode) override;
 
             output_stream(output_stream&&) = default;
             output_stream& operator=(output_stream&&) = default;
@@ -117,7 +117,7 @@ namespace stream {
         private:
             array_ref<void> next_buffer(Mode mode);
             bool update_buffer_size(ring_spsc_shared_data* shared, uint32_t producer_index,
-                                    uint32_t segmentLimit, uint32_t ringSize);
+                                    uint32_t segment_limit, uint32_t ring_size);
 
             data d;
         };
@@ -147,7 +147,7 @@ namespace stream {
 
         LIBLBU_EXPORT ~ring_spsc_basic_controller();
 
-        LIBLBU_EXPORT bool pair_streams(ring_spsc::output_stream* out, ring_spsc::input_stream* in,
+        bool LIBLBU_EXPORT pair_streams(ring_spsc::output_stream* out, ring_spsc::input_stream* in,
                                         uint32_t segment_limit = ring_spsc::DefaultRingSegmentLimit);
 
         ring_spsc_basic_controller(const ring_spsc_basic_controller&) = delete;
@@ -158,7 +158,7 @@ namespace stream {
         internal* d;
     };
 
-} // namespace stream
-} // namespace lbu
+}
+}
 
-#endif // LIBLBU_RING_SPSC_STREAM_H
+#endif

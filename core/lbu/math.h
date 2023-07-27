@@ -123,14 +123,14 @@ namespace lbu {
         static_assert(std::is_integral<ExpType>::value && !std::is_signed<ExpType>::value, "Need unsigned int type as exponent");
         static_assert(std::is_integral<BaseType>::value, "Need int type as base");
 
-        BaseType absBase = abs(base);
-        ExpType expTmp = exp;
+        BaseType abs_base = abs(base);
+        ExpType exp_tmp = exp;
         BaseType result = 1;
-        while( expTmp ) {
-            if( expTmp & 1 )
-                result *= absBase;
-            expTmp >>= 1;
-            absBase *= absBase;
+        while( exp_tmp ) {
+            if( exp_tmp & 1 )
+                result *= abs_base;
+            exp_tmp >>= 1;
+            abs_base *= abs_base;
         }
         return (base < 0 && (exp & 1)) ? -result : result;
     }
@@ -175,6 +175,7 @@ namespace lbu {
         static_assert(std::is_integral<UIntType>::value && !std::is_signed<UIntType>::value, "Need unsigned int type");
         return val ? (!(val & (val - 1))) : false;
     }
+
 }
 
-#endif // LIBLBU_MATH_H
+#endif

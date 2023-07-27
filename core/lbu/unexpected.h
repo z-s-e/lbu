@@ -13,6 +13,6 @@ namespace lbu {
     void LIBLBU_EXPORT unexpected_memory_exhaustion();
     void LIBLBU_EXPORT unexpected_call();
 
-} // namespace lbu
+}
 
-#endif // LIBLBU_UNEXPECTED_H
+#endif

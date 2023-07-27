@@ -173,8 +173,7 @@ namespace io {
         return WriteNoError;
     }
 
-} // namespace io
-} // namespace lbu
+}
+}
 
-#endif // LIBLBU_IO_H
-
+#endif
