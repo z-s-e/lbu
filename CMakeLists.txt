@@ -90,6 +90,7 @@ else()
                           VERSION ${LIBLBU_VERSION})
 endif()
 
+add_library(lbu::core ALIAS lbu_core)
 add_custom_target(lbu_core_header SOURCES ${lbu_core_hdr})
 
 configure_file(
@@ -141,13 +142,14 @@ if(LBU_BUILD_ALSA)
                             VERSION ${LIBLBU_VERSION})
     endif()
 
+    add_library(lbu::alsa ALIAS lbu_alsa)
     add_custom_target(lbu_alsa_header SOURCES ${lbu_alsa_hdr})
     set_property(TARGET lbu_alsa
                 PROPERTY PUBLIC_HEADER
                 ${lbu_alsa_hdr})
 
     pkg_check_modules(alsa REQUIRED IMPORTED_TARGET alsa)
-    target_link_libraries(lbu_alsa PUBLIC lbu_core PkgConfig::alsa)
+    target_link_libraries(lbu_alsa PUBLIC lbu::core PkgConfig::alsa)
     lbu_set_common_properties(lbu_alsa)
 
     target_include_directories(lbu_alsa PUBLIC

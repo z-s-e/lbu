@@ -6,3 +6,8 @@ if(@LBU_BUILD_ALSA@)
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/lbuTargets.cmake")
+
+add_library(lbu::core ALIAS lbu_core)
+if(@LBU_BUILD_ALSA@)
+    add_library(lbu::alsa ALIAS lbu_alsa)
+endif()
