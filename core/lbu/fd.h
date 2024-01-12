@@ -1,4 +1,4 @@
-/* Copyright 2015-2020 Zeno Sebastian Endemann <zeno.endemann@mailbox.org>
+/* Copyright 2015-2023 Zeno Sebastian Endemann <zeno.endemann@mailbox.org>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -34,13 +34,13 @@ namespace lbu {
             return (f >= 0) && (f & O_NONBLOCK);
         }
 
-        inline bool set_nonblock(bool value)
+        inline bool set_nonblock(bool nonblock)
         {
             int oldflags = ::fcntl(value, F_GETFL, 0);
             if( oldflags == -1 )
                 return false;
-            return ::fcntl(value, F_SETFL, value ? (oldflags | O_NONBLOCK)
-                                                 : (oldflags & (~O_NONBLOCK))) != -1;
+            return ::fcntl(value, F_SETFL, nonblock ? (oldflags | O_NONBLOCK)
+                                                    : (oldflags & (~O_NONBLOCK))) != -1;
         }
 
         inline bool is_cloexec()
@@ -49,13 +49,13 @@ namespace lbu {
             return (f >= 0) && (f & FD_CLOEXEC);
         }
 
-        inline bool set_cloexec(bool value)
+        inline bool set_cloexec(bool cloexec)
         {
             int oldflags = ::fcntl(value, F_GETFD, 0);
             if( oldflags == -1 )
                 return false;
-            return ::fcntl(value, F_SETFD, value ? (oldflags | FD_CLOEXEC)
-                                                 : (oldflags & (~FD_CLOEXEC))) != -1;
+            return ::fcntl(value, F_SETFD, cloexec ? (oldflags | FD_CLOEXEC)
+                                                   : (oldflags & (~FD_CLOEXEC))) != -1;
         }
     };
 

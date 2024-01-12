@@ -1,11 +1,10 @@
-/* Copyright 2015-2020 Zeno Sebastian Endemann <zeno.endemann@mailbox.org>
+/* Copyright 2015-2023 Zeno Sebastian Endemann <zeno.endemann@mailbox.org>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #include "lbu/fd_stream.h"
 
 #include "lbu/dynamic_memory.h"
-#include "lbu/pipe.h"
 
 #include <algorithm>
 

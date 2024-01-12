@@ -47,16 +47,6 @@ namespace poll {
         return d;
     }
 
-    inline bool pollfd_is_ignored(const pollfd* pfd)
-    {
-        return  pfd->fd < 0;
-    }
-
-    inline void pollfd_toggle_ignored(pollfd* pfd)
-    {
-        pfd->fd = -(pfd->fd) - 1;
-    }
-
     inline short flags(const pollfd* pfd)
     {
         return pfd->events;
@@ -153,7 +143,6 @@ namespace poll {
     private:
         pollfd d;
     };
-    static_assert(sizeof(unique_pollfd) == sizeof(pollfd), "unique_entry must have pollfd layout");
 
     inline void swap(unique_pollfd& lhs, unique_pollfd& rhs)
     {
@@ -185,6 +174,14 @@ namespace poll {
         return poll(fds.data(), fds.size(), timeout);
     }
 
+    inline constexpr struct timespec timespec_for_duration(std::chrono::nanoseconds ns)
+    {
+        struct timespec ts = {};
+        ts.tv_nsec = ns.count() % std::nano::den;
+        ts.tv_sec = ns.count() / std::nano::den;
+        return ts;
+    }
+
     inline poll_result ppoll(pollfd* fds, nfds_t nfds,
                              const struct timespec* timeout_ts = nullptr,
                              const sigset_t* sigmask = nullptr)
@@ -207,9 +204,7 @@ namespace poll {
                              std::chrono::nanoseconds timeout,
                              const sigset_t* sigmask = nullptr)
     {
-        struct timespec ts;
-        ts.tv_nsec = timeout.count() % std::nano::den;
-        ts.tv_sec = timeout.count() / std::nano::den;
+        const auto ts = timespec_for_duration(timeout);
         return lbu::poll::ppoll(fds, nfds, &ts, sigmask);
     }
 

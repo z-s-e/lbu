@@ -35,6 +35,17 @@ namespace lbu {
                                                                         abs(std::numeric_limits<IntType>::min()));
     }
 
+    // integer div
+
+    template< typename IntType, typename UIntType >
+    constexpr IntType idiv_ceil(IntType num, UIntType den)
+    {
+        static_assert(std::is_integral<IntType>::value, "Need int type for numerator");
+        static_assert(std::is_integral<UIntType>::value && !std::is_signed<UIntType>::value, "Need unsigned int type for denominator");
+        assert( den > 0 );
+        return (num / den) + (num % den > 0 ? 1 : 0);
+    }
+
     // integer log
 
     template< typename UIntType >

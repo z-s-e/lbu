@@ -11,6 +11,7 @@
 #include <atomic>
 #include <cassert>
 #include <limits>
+#include <utility>
 
 namespace lbu {
 namespace ring_spsc {
@@ -176,9 +177,7 @@ namespace algorithm {
 }
 
 
-    template< class T,
-              class SizeType = size_t,
-              class BufferAlg = algorithm::mirrored_index<SizeType> >
+    template< class T, class SizeType = size_t, class BufferAlg = algorithm::mirrored_index<SizeType> >
     class handle {
     private:
         struct data {
