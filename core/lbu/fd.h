@@ -28,34 +28,50 @@ namespace lbu {
             assert(c == 0 || errno != EBADF);
         }
 
-        inline bool is_nonblock()
+        inline bool is_nonblock(int* error)
         {
             int f = ::fcntl(value, F_GETFL, 0);
-            return (f >= 0) && (f & O_NONBLOCK);
+            if( f == -1 )
+                *error = errno;
+            return (f != -1) && (f & O_NONBLOCK);
         }
 
-        inline bool set_nonblock(bool nonblock)
+        inline bool set_nonblock(bool nonblock, int* error)
         {
             int oldflags = ::fcntl(value, F_GETFL, 0);
-            if( oldflags == -1 )
+            if( oldflags == -1 ) {
+                *error = errno;
                 return false;
-            return ::fcntl(value, F_SETFL, nonblock ? (oldflags | O_NONBLOCK)
-                                                    : (oldflags & (~O_NONBLOCK))) != -1;
+            }
+            if( ::fcntl(value, F_SETFL, nonblock ? (oldflags | O_NONBLOCK)
+                                                 : (oldflags & (~O_NONBLOCK))) == -1 ) {
+                *error = errno;
+                return false;
+            }
+            return true;
         }
 
-        inline bool is_cloexec()
+        inline bool is_cloexec(int* error)
         {
             int f = ::fcntl(value, F_GETFD, 0);
-            return (f >= 0) && (f & FD_CLOEXEC);
+            if( f == -1 )
+                *error = errno;
+            return (f != -1) && (f & FD_CLOEXEC);
         }
 
-        inline bool set_cloexec(bool cloexec)
+        inline bool set_cloexec(bool cloexec, int* error)
         {
             int oldflags = ::fcntl(value, F_GETFD, 0);
-            if( oldflags == -1 )
+            if( oldflags == -1 ) {
+                *error = errno;
                 return false;
-            return ::fcntl(value, F_SETFD, cloexec ? (oldflags | FD_CLOEXEC)
-                                                   : (oldflags & (~FD_CLOEXEC))) != -1;
+            }
+            if( ::fcntl(value, F_SETFD, cloexec ? (oldflags | FD_CLOEXEC)
+                                                : (oldflags & (~FD_CLOEXEC))) == -1 ) {
+                *error = errno;
+                return false;
+            }
+            return true;
         }
     };
 

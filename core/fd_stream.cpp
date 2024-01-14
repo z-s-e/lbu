@@ -12,21 +12,15 @@ namespace lbu {
 namespace stream {
 
 
-static inline void update_blocking(Mode mode, FdBlockingState *block, fd f)
+static bool update_blocking(Mode mode, FdBlockingState block, fd f, int* err)
 {
-    // Ignore possible errors from setting nonblock, because if there is an
-    // error, the following read/write operations should fail as well.
-    if( mode == Mode::Blocking ) {
-        if( *block != FdBlockingState::Blocking ) {
-            if( f.set_nonblock(false) )
-                *block = FdBlockingState::Blocking;
-        }
-    } else {
-        if( *block != FdBlockingState::NonBlocking ) {
-            if( f.set_nonblock(true) )
-                *block = FdBlockingState::NonBlocking;
-        }
+    if( block == FdBlockingState::Automatic )
+        return f.set_nonblock(mode == Mode::NonBlocking, err);
+    if( (mode == Mode::Blocking) != (block == FdBlockingState::AlwaysBlocking) ) {
+        *err = io::ReadBadRequest;
+        return false;
     }
+    return true;
 }
 
 
@@ -60,7 +54,10 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
         return -1;
 
     const Mode mode = (required_read > 0) ? Mode::Blocking : Mode::NonBlocking;
-    update_blocking(mode, &fd_blocking, filedes);
+    if( ! update_blocking(mode, fd_blocking, filedes, &err) ) {
+        status_flags = StatusError;
+        return -1;
+    }
 
     io::io_vector internal_array[2];
     uint32_t buffer_read = 0;
@@ -147,7 +144,10 @@ array_ref<const void> fd_input_stream::get_read_buffer(Mode mode)
 {
     if( has_error() )
         return {};
-    update_blocking(mode, &fd_blocking, filedes);
+    if( ! update_blocking(mode, fd_blocking, filedes, &err) ) {
+        status_flags = StatusError;
+        return {};
+    }
 
     const auto r = io::read(filedes, array_ref<char>(buffer_base_ptr, buffer_capacity));
     if( r.size > 0 ) {
@@ -209,7 +209,10 @@ ssize_t fd_output_stream::write_fd(array_ref<io::io_vector> buf_array, Mode mode
 {
     if( has_error() )
         return -1;
-    update_blocking(mode, &fd_blocking, filedes);
+    if( ! update_blocking(mode, fd_blocking, filedes, &err) ) {
+        status_flags = StatusError;
+        return -1;
+    }
 
     io::io_vector internal_array[2];
     uint32_t internal_write_size = 0;

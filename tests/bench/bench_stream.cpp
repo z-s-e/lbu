@@ -237,7 +237,7 @@ class Thread_FdStream : public QThread {
 public:
     Thread_FdStream(lbu::unique_fd f)
     {
-        m_stream.reset(std::move(f), lbu::stream::FdBlockingState::Blocking);
+        m_stream.reset(std::move(f), lbu::stream::FdBlockingState::AlwaysBlocking);
     }
 };
 
@@ -490,7 +490,7 @@ private Q_SLOTS:
         QVERIFY(pipe.status == lbu::pipe::StatusNoError);
 
         lbu::stream::managed_fd_output_stream writeDev;
-        writeDev.reset(std::move(pipe.write_fd), lbu::stream::FdBlockingState::Blocking);
+        writeDev.reset(std::move(pipe.write_fd), lbu::stream::FdBlockingState::AlwaysBlocking);
         auto *s = writeDev.stream();
         std::unique_ptr<Thread_FdStream> t(new Thread_FdStream(std::move(pipe.read_fd)));
 

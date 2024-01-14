@@ -13,9 +13,10 @@ namespace lbu {
 namespace stream {
 
     enum class FdBlockingState : uint8_t {
-        Unknown = 0,
-        Blocking = 1,
-        NonBlocking = 2
+        Automatic,          // the stream will update the blocking state of the fd for each request accordingly
+        AlwaysBlocking,     // the stream assumes the fd will always block and will never change its blocking state
+                            // - read or write operation requesting non-blocking will generate an EINVAL error
+        AlwaysNonBlocking   // same principle as above
     };
 
 
@@ -23,15 +24,16 @@ namespace stream {
     public:
         explicit LIBLBU_EXPORT fd_input_stream(array_ref<void> buffer,
                                                fd f = {},
-                                               FdBlockingState b = FdBlockingState::Unknown);
+                                               FdBlockingState b = FdBlockingState::Automatic);
         LIBLBU_EXPORT ~fd_input_stream() override;
 
-        void LIBLBU_EXPORT set_descriptor(fd f, FdBlockingState b = FdBlockingState::Unknown);
+        void LIBLBU_EXPORT set_descriptor(fd f, FdBlockingState b = FdBlockingState::Automatic);
         fd descriptor() const { return filedes; }
 
         int status() const { return err; }
 
         void* buffer_base() { return buffer_base_ptr; }
+        uint32_t buffer_read_available() const { return buffer_available; }
 
     protected:
         ssize_t LIBLBU_EXPORT read_stream(array_ref<io::io_vector> buf_array, size_t required_read) override;
@@ -52,10 +54,10 @@ namespace stream {
     public:
         explicit LIBLBU_EXPORT fd_output_stream(array_ref<void> buffer,
                                                 fd f = {},
-                                                FdBlockingState b = FdBlockingState::Unknown);
+                                                FdBlockingState b = FdBlockingState::Automatic);
         LIBLBU_EXPORT ~fd_output_stream() override;
 
-        void LIBLBU_EXPORT set_descriptor(fd f, FdBlockingState b = FdBlockingState::Unknown);
+        void LIBLBU_EXPORT set_descriptor(fd f, FdBlockingState b = FdBlockingState::Automatic);
         fd descriptor() const { return filedes; }
 
         int status() const { return err; }
@@ -93,7 +95,7 @@ namespace stream {
         LIBLBU_EXPORT ~socket_stream_pair();
 
         unique_fd LIBLBU_EXPORT take_reset(unique_fd f = {},
-                                           FdBlockingState b = FdBlockingState::Unknown);
+                                           FdBlockingState b = FdBlockingState::Automatic);
 
         abstract_input_stream* input_stream() { return &in; }
         int input_status() const { return in.status(); }
@@ -112,7 +114,7 @@ namespace stream {
     public:
         explicit LIBLBU_EXPORT managed_fd_output_stream(uint32_t bufsize = DefaultBufferSize);
         explicit managed_fd_output_stream(unique_fd f,
-                                          FdBlockingState b = FdBlockingState::Unknown,
+                                          FdBlockingState b = FdBlockingState::Automatic,
                                           uint32_t bufsize = DefaultBufferSize)
             : managed_fd_output_stream(bufsize)
         {
@@ -120,7 +122,7 @@ namespace stream {
         }
         LIBLBU_EXPORT ~managed_fd_output_stream();
 
-        void LIBLBU_EXPORT reset(unique_fd f, FdBlockingState b = FdBlockingState::Unknown);
+        void LIBLBU_EXPORT reset(unique_fd f, FdBlockingState b = FdBlockingState::Automatic);
 
         abstract_output_stream* stream() { return &out; }
         fd descriptor() { return out.descriptor(); }
@@ -134,7 +136,7 @@ namespace stream {
     public:
         explicit LIBLBU_EXPORT managed_fd_input_stream(uint32_t bufsize = DefaultBufferSize);
         explicit managed_fd_input_stream(unique_fd f,
-                                         FdBlockingState b = FdBlockingState::Unknown,
+                                         FdBlockingState b = FdBlockingState::Automatic,
                                          uint32_t bufsize = DefaultBufferSize)
             : managed_fd_input_stream(bufsize)
         {
@@ -142,7 +144,7 @@ namespace stream {
         }
         LIBLBU_EXPORT ~managed_fd_input_stream();
 
-        void LIBLBU_EXPORT reset(unique_fd f, FdBlockingState b = FdBlockingState::Unknown);
+        void LIBLBU_EXPORT reset(unique_fd f, FdBlockingState b = FdBlockingState::Automatic);
 
         abstract_input_stream* stream() { return &in; }
         fd descriptor() { return in.descriptor(); }
