@@ -24,9 +24,7 @@ static bool update_blocking(Mode mode, FdBlockingState block, fd f, int* err)
 }
 
 
-fd_input_stream::fd_input_stream(array_ref<void> buffer,
-                                 fd f,
-                                 FdBlockingState b)
+fd_input_stream::fd_input_stream(array_ref<void> buffer, fd f, FdBlockingState b)
     : abstract_input_stream(buffer ? InternalBuffer::Yes : InternalBuffer::No)
 {
     buffer_base_ptr = static_cast<char*>(buffer.data());
@@ -128,10 +126,10 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
             } else {
                 if( ! io::io_vector_array_has_zero_size(buf_array) )
                     status_flags = StatusEndOfStream;
-                return buffer_read;
+                return ssize_t(buffer_read);
             }
         } else if( r.status == io::ReadWouldBlock && mode == Mode::NonBlocking ) {
-            return buffer_read;
+            return ssize_t(buffer_read);
         } else {
             err = r.status;
             status_flags = StatusError;
@@ -165,9 +163,7 @@ array_ref<const void> fd_input_stream::get_read_buffer(Mode mode)
     return {};
 }
 
-fd_output_stream::fd_output_stream(array_ref<void> buffer,
-                                   fd f,
-                                   FdBlockingState b)
+fd_output_stream::fd_output_stream(array_ref<void> buffer, fd f, FdBlockingState b)
     : abstract_output_stream(buffer ? InternalBuffer::Yes : InternalBuffer::No)
 {
     buffer_base_ptr = static_cast<char*>(buffer.data());
@@ -215,14 +211,14 @@ ssize_t fd_output_stream::write_fd(array_ref<io::io_vector> buf_array, Mode mode
     }
 
     io::io_vector internal_array[2];
-    uint32_t internal_write_size = 0;
+    ssize_t internal_write_size = 0;
 
     if( manages_buffer() ) {
         assert(buf_array.size() == 1);
 
         internal_write_size = buffer_offset - buffer_write_offset;
         if( internal_write_size > 0 ) {
-            internal_array[0] = io::io_vec(buffer_base_ptr + buffer_write_offset, internal_write_size);
+            internal_array[0] = io::io_vec(buffer_base_ptr + buffer_write_offset, size_t(internal_write_size));
             internal_array[1] = buf_array[0];
             buf_array = array_ref<io::io_vector>(internal_array);
         }
@@ -256,7 +252,7 @@ ssize_t fd_output_stream::write_fd(array_ref<io::io_vector> buf_array, Mode mode
                     reset_buffer();
                 return r.size - internal_write_size;
             } else {
-                buffer_write_offset += r.size;
+                buffer_write_offset += uint32_t(r.size);
                 return 0;
             }
         } else if( r.status == io::WriteWouldBlock ) {

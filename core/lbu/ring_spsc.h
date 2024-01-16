@@ -30,6 +30,8 @@ namespace algorithm {
     template< class SizeType >
     SizeType continuous_slots(SizeType offset, SizeType count, SizeType n)
     {
+        static_assert(std::is_unsigned<SizeType>::value, "Need unsigned type");
+        assert(n > offset);
         return std::min(count, n - offset);
     }
 
@@ -38,57 +40,56 @@ namespace algorithm {
     public:
         static bool producer_has_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
-            assert(n > 1);
             const auto p = producer_index;
             const auto c = consumer_index;
+            assert(n > 1 && p < n && c < n);
 
-            return (c == 0 ? (p != n-1) : (p != c-1));
+            return (c == 0 ? (p != n - 1) : (p != c - 1));
         }
 
         static SizeType producer_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
-            assert(n > 1);
             const auto p = producer_index;
             const auto c = consumer_index;
+            assert(n > 1 && p < n && c < n);
 
             return (p >= c ? (n - p + c) : (c - p)) - 1;
         }
 
-        static bool consumer_has_free_slots(SizeType producer_index, SizeType consumer_index, SizeType)
+        static bool consumer_has_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
             const auto p = producer_index;
             const auto c = consumer_index;
+            assert(n > 1 && p < n && c < n);
 
             return p != c;
         }
 
         static SizeType consumer_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
-            assert(n > 1);
             const auto p = producer_index;
             const auto c = consumer_index;
+            assert(n > 1 && p < n && c < n);
 
             return (c <= p ? (p - c) : (n - c + p));
         }
 
-        static SizeType offset(SizeType idx, SizeType)
+        static SizeType offset(SizeType idx, SizeType n)
         {
+            assert(n > 1 && idx < n);
             return idx;
         }
 
         static SizeType new_index(SizeType idx, SizeType cnt, SizeType n)
         {
-            assert(n > 1);
-            assert(cnt < n && cnt >= 0);
-            assert(idx < n);
+            assert(n > 1 && idx < n && cnt < n);
             return ((n - idx > cnt) ? (idx + cnt) : (cnt - (n - idx)));
         }
 
         static SizeType new_index_increment(SizeType idx, SizeType n)
         {
-            assert(n > 1);
+            assert(n > 1 && idx < n);
             const auto i = idx + 1;
-            assert(i <= n);
             return (i == n ? 0 : i);
         }
 
@@ -96,6 +97,8 @@ namespace algorithm {
         {
             return std::numeric_limits<SizeType>::max();
         }
+
+        static_assert(std::is_unsigned<SizeType>::value, "Need unsigned type");
     };
 
 
@@ -104,60 +107,57 @@ namespace algorithm {
     public:
         static bool producer_has_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
-            assert(n >= 1 && n <= max_size());
             const auto p = producer_index;
             const auto c = consumer_index;
+            assert(n >= 1 && n <= max_size() && p < 2*n && c < 2*n);
 
             return (p > c ? (p - c) : (c - p)) != n;
         }
 
         static SizeType producer_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
-            assert(n >= 1 && n <= max_size());
             const auto p = producer_index;
             const auto c = consumer_index;
+            assert(n >= 1 && n <= max_size() && p < 2*n && c < 2*n);
 
             return (p >= c ? (n - (p - c)) : (c - n - p));
         }
 
 
-        static bool consumer_has_free_slots(SizeType producer_index, SizeType consumer_index, SizeType)
+        static bool consumer_has_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
             const auto p = producer_index;
             const auto c = consumer_index;
+            assert(n >= 1 && n <= max_size() && p < 2*n && c < 2*n);
 
             return p != c;
         }
 
         static SizeType consumer_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
-            assert(n >= 1 && n <= max_size());
             const auto p = producer_index;
             const auto c = consumer_index;
+            assert(n >= 1 && n <= max_size() && p < 2*n && c < 2*n);
 
             return (c <= p ? (p - c) : (2*n - c + p));
         }
 
         static SizeType offset(SizeType idx, SizeType n)
         {
-            assert(n >= 1 && n <= max_size());
-            assert(idx < 2*n);
+            assert(n >= 1 && n <= max_size() && idx < 2*n);
             return idx >= n ? idx - n : idx;
         }
 
         static SizeType new_index(SizeType idx, SizeType cnt, SizeType n)
         {
-            assert(n >= 1 && n <= max_size());
-            assert(cnt <= n && cnt >= 0);
-            assert(idx < 2*n);
+            assert(n >= 1 && n <= max_size() && cnt <= n && idx < 2*n);
             return ((2*n - idx > cnt) ? (idx + cnt) : (idx - n + cnt - n));
         }
 
         static SizeType new_index_increment(SizeType idx, SizeType n)
         {
-            assert(n >= 1 && n <= max_size());
+            assert(n >= 1 && n <= max_size() && idx < 2*n);
             const auto i = idx + 1;
-            assert(i <= 2*n);
             return (i == 2*n ? 0 : i);
         }
 
@@ -165,6 +165,8 @@ namespace algorithm {
         {
             return std::numeric_limits<SizeType>::max() / 2;
         }
+
+        static_assert(std::is_unsigned<SizeType>::value, "Need unsigned type");
     };
 
     template< class T, class SizeType >

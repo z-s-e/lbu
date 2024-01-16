@@ -94,8 +94,7 @@ namespace stream {
 
         LIBLBU_EXPORT ~socket_stream_pair();
 
-        unique_fd LIBLBU_EXPORT take_reset(unique_fd f = {},
-                                           FdBlockingState b = FdBlockingState::Automatic);
+        unique_fd LIBLBU_EXPORT take_reset(unique_fd f = {}, FdBlockingState b = FdBlockingState::Automatic);
 
         abstract_input_stream* input_stream() { return &in; }
         int input_status() const { return in.status(); }

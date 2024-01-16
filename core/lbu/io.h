@@ -110,7 +110,7 @@ namespace io {
 
     inline io_result readv(fd f, array_ref<const io_vector> iov)
     {
-        return temp_fail_retry<const io_vector*, int>::apply<::readv>(f.value, iov.data(), iov.size());
+        return temp_fail_retry<const io_vector*, int>::apply<::readv>(f.value, iov.data(), int(iov.size()));
     }
 
     // Reading past the end of stream is treated as an IOError
@@ -153,7 +153,7 @@ namespace io {
 
     inline io_result writev(fd f, array_ref<const io_vector> iov)
     {
-        return temp_fail_retry<const io_vector*, int>::apply<::writev>(f.value, iov.data(), iov.size());
+        return temp_fail_retry<const io_vector*, int>::apply<::writev>(f.value, iov.data(), int(iov.size()));
     }
 
     inline int write_all(fd f, array_ref<const void> buffer)
