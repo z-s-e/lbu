@@ -52,9 +52,7 @@ ring_spsc::input_stream::~input_stream()
 {
 }
 
-void ring_spsc::input_stream::reset(array_ref<void> buffer,
-                                    fd event_fd,
-                                    ring_spsc_shared_data* s)
+void ring_spsc::input_stream::reset(array_ref<void> buffer, fd event_fd, ring_spsc_shared_data* s)
 {
     buffer_base_ptr = static_cast<char*>(buffer.data());
     const auto n = uint32_t(std::min(buffer.byte_size(), alg::max_size()));
@@ -71,34 +69,35 @@ void ring_spsc::input_stream::reset(array_ref<void> buffer,
 
 ssize_t ring_spsc::input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t required_read)
 {
+    if( has_error() )
+        return -1;
+
     const Mode mode = (required_read > 0) ? Mode::Blocking : Mode::NonBlocking;
     auto dst = io::io_vec_to_array_ref(buf_array[0]).array_static_cast<char>();
+    if( dst.size() == 0 )
+        return 0;
 
     size_t count = buffer_available;
+    assert(dst.size() > count);
     if( count > 0 ) {
         std::memcpy(dst.data(), buffer_base_ptr + buffer_offset, count);
-        advance_buffer(count);
+        advance(count);
         dst = dst.sub(count);
     }
 
-    while( true ) {
+    do {
         auto buf = next_buffer(mode);
         if( buf.size() == 0 )
             return has_error() ? -1 : ssize_t(count);
 
-        if( buf.size() >= dst.size() ) {
-            const auto c = dst.size();
-            std::memcpy(dst.data(), buf.data(), c);
-            advance_buffer(c);
-            return ssize_t(count + c);
-        }
-
-        const auto c = buf.size();
+        const auto c = std::min(buf.size(), dst.size());
         std::memcpy(dst.data(), buf.data(), c);
-        advance_whole_buffer();
         count += c;
+        advance(c);
         dst = dst.sub(c);
-    }
+    } while( dst.size() > 0 );
+
+    return ssize_t(count);
 }
 
 array_ref<const void> ring_spsc::input_stream::get_read_buffer(Mode mode)
@@ -220,9 +219,7 @@ bool ring_spsc::output_stream::set_end_of_stream()
     return true;
 }
 
-void ring_spsc::output_stream::reset(array_ref<void> buffer,
-                                     fd event_fd,
-                                     ring_spsc_shared_data* s)
+void ring_spsc::output_stream::reset(array_ref<void> buffer, fd event_fd, ring_spsc_shared_data* s)
 {
     buffer_base_ptr = static_cast<char*>(buffer.data());
     const auto n = uint32_t(std::min(buffer.byte_size(), alg::max_size()));
@@ -245,20 +242,16 @@ ssize_t ring_spsc::output_stream::write_stream(array_ref<io::io_vector> buf_arra
     }
 
     auto src = io::io_vec_to_array_ref(buf_array[0]).array_static_cast<char>();
+    if( src.size() == 0 )
+        return 0;
 
     array_ref<void> buf = current_buffer();
     size_t count = buf.size();
-
-    if( src.size() > 0 ) {
-        assert(count < src.size());
-        if( count > 0 ) {
-            std::memcpy(buf.data(), src.data(), count);
-            advance_whole_buffer();
-            src = src.sub(count);
-        }
-    } else {
-        assert(count == 0);
-        mode = Mode::NonBlocking;
+    assert(count < src.size());
+    if( count > 0 ) {
+        std::memcpy(buf.data(), src.data(), count);
+        advance_whole_buffer();
+        src = src.sub(count);
     }
 
     while( true ) {
@@ -411,9 +404,7 @@ ring_spsc_basic_controller::~ring_spsc_basic_controller()
     ::free(d);
 }
 
-bool ring_spsc_basic_controller::pair_streams(ring_spsc::output_stream *out,
-                                              ring_spsc::input_stream *in,
-                                              uint32_t segment_limit)
+bool ring_spsc_basic_controller::pair_streams(ring_spsc::output_stream *out, ring_spsc::input_stream *in, uint32_t segment_limit)
 {
     if( ! d->filedes )
         return false;

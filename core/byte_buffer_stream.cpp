@@ -32,8 +32,13 @@ void byte_buffer_input_stream::reset(array_ref<void> buf)
 
 ssize_t byte_buffer_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t)
 {
-    const ssize_t r = buffer_available;
-    if( r > 0 ) {
+    if( has_error() )
+        return -1;
+
+    assert(buffer_available == 0 || buf_array[0].iov_len > buffer_available);
+    const auto r = ssize_t(buffer_available);
+
+    if( buffer_available > 0 ) {
         std::memcpy(buf_array[0].iov_base, buffer_base_ptr + buffer_offset, buffer_available);
         buffer_available = 0;
     }
