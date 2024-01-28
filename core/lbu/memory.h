@@ -104,7 +104,7 @@ namespace lbu {
     U value_reinterpret_cast(const T& value)
     {
         static_assert(sizeof(T) == sizeof(U), "size mismatch");
-        static_assert(std::is_pod<T>::value && std::is_pod<U>::value, "only POD supported");
+        static_assert(std::is_trivial_v<T> && std::is_trivial_v<U>);
 
         U result;
         std::memcpy(&result, &value, sizeof(result));
@@ -114,7 +114,7 @@ namespace lbu {
     template< typename T >
     T byte_reinterpret_cast(const void* src)
     {
-        static_assert(std::is_pod<T>::value, "only POD supported");
+        static_assert(std::is_trivial_v<T>);
 
         T result;
         std::memcpy(&result, src, sizeof(result));

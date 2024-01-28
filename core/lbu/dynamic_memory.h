@@ -20,7 +20,7 @@ namespace lbu {
     template< typename ByteType >
     ByteType* malloc_bytes(size_t count)
     {
-        static_assert(is_byte_type<ByteType>::value, "need byte type");
+        static_assert(is_byte_type<ByteType>::value);
         if( count == 0 )
             return {};
         return static_cast<ByteType*>(::malloc(count));
@@ -38,7 +38,7 @@ namespace lbu {
     template< typename ByteType >
     ByteType* realloc_bytes(ByteType* p, size_t count)
     {
-        static_assert(is_byte_type<ByteType>::value, "need byte type");
+        static_assert(is_byte_type<ByteType>::value);
         return static_cast<ByteType*>(::realloc(p, count));
     }
 
@@ -72,10 +72,10 @@ namespace lbu {
         return p;
     }
 
-    template< typename Pod >
-    Pod* malloc_copy(array_ref<const Pod> data)
+    template< typename T >
+    T* malloc_copy(array_ref<const T> data)
     {
-        static_assert(std::is_pod<Pod>::value, "only POD supported");
+        static_assert(std::is_trivial_v<T>);
         auto p = malloc_bytes<char>(data.byte_size());
         if( p != nullptr )
             std::memcpy(p, data.data(), data.byte_size());
@@ -91,14 +91,14 @@ namespace lbu {
         return p;
     }
 
-    template< typename Pod >
-    Pod* calloc(size_t count)
+    template< typename T >
+    T* calloc(size_t count)
     {
-        static_assert(std::is_pod<Pod>::value, "only POD supported");
+        static_assert(std::is_trivial_v<T>);
         if( count == 0 )
             return {};
-        assert(count <= (std::numeric_limits<size_t>::max() / sizeof(Pod)));
-        return static_cast<Pod*>(::calloc(count, sizeof(Pod)));
+        assert(count <= (std::numeric_limits<size_t>::max() / sizeof(T)));
+        return static_cast<T*>(::calloc(count, sizeof(T)));
     }
 
     template< typename Pod >

@@ -341,20 +341,23 @@ namespace detail {
 
     class incremental_reader {
     public:
+        incremental_reader() {}
+        incremental_reader(array_ref<void> dst) { reset(dst); }
+
         template< typename T >
         explicit incremental_reader(T* dst) { reset(dst); }
 
-        void reset(void *dst, size_t size)
+        void reset(array_ref<void> dst)
         {
-            position = reinterpret_cast<char*>(dst);
-            left = size;
+            position = reinterpret_cast<char*>(dst.data());
+            left = dst.byte_size();
         }
 
         template< typename T >
         void reset(T* dst)
         {
-            static_assert(std::is_pod<T>::value, "Type must be POD");
-            reset(dst, sizeof(T));
+            static_assert(std::is_trivial_v<T>);
+            reset(array_ref_one_element(dst));
         }
 
         bool read(abstract_input_stream* stream)
@@ -370,27 +373,30 @@ namespace detail {
         }
 
     private:
-        char* position;
-        size_t left;
+        char* position = nullptr;
+        size_t left = 0;
     };
 
 
     class incremental_writer {
     public:
-        template< typename T >
-        explicit incremental_writer(const T* dst) { reset(dst); }
+        incremental_writer() {}
+        incremental_writer(array_ref<const void> src) { reset(src); }
 
-        void reset(const void *dst, size_t size)
+        template< typename T >
+        explicit incremental_writer(const T* src) { reset(src); }
+
+        void reset(array_ref<const void> src)
         {
-            position = reinterpret_cast<const char*>(dst);
-            left = size;
+            position = reinterpret_cast<const char*>(src.data());
+            left = src.byte_size();
         }
 
         template< typename T >
-        void reset(const T* dst)
+        void reset(const T* src)
         {
-            static_assert(std::is_pod<T>::value, "Type must be POD");
-            reset(dst, sizeof(T));
+            static_assert(std::is_trivial_v<T>);
+            reset(array_ref_one_element(src));
         }
 
         bool write(abstract_output_stream* stream)
@@ -406,8 +412,8 @@ namespace detail {
         }
 
     private:
-        const char* position;
-        size_t left;
+        const char* position = nullptr;
+        size_t left = 0;
     };
 
 }

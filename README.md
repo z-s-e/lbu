@@ -2,7 +2,7 @@
 
 This library is an experimental utility library with the goal of providing
 low level high performance application building blocks for Linux with a modern
-C++14 interface and minimum abstraction overhead.
+C++17 interface and minimum abstraction overhead.
 
 Goals of this library are:
 

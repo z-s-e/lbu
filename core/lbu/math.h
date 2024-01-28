@@ -17,9 +17,9 @@ namespace lbu {
     template< typename IntType >
     constexpr typename std::make_unsigned<IntType>::type abs(IntType val)
     {
-        static_assert(std::is_integral<IntType>::value, "Need int type");
-        static_assert(std::is_unsigned<IntType>::value
-                      || (std::numeric_limits<IntType>::max() + std::numeric_limits<IntType>::min() >= IntType(-1)), "Unsupported type");
+        static_assert(std::is_integral_v<IntType>);
+        static_assert(std::is_unsigned_v<IntType>
+                      || (std::numeric_limits<IntType>::max() + std::numeric_limits<IntType>::min() >= IntType(-1)), "unsupported type");
         using U = typename std::make_unsigned<IntType>::type;
         return val < 0 ? U(-(val + 1)) + 1 : U(val);
     }
@@ -27,7 +27,7 @@ namespace lbu {
     template< typename IntType >
     constexpr typename std::make_unsigned<IntType>::type abs_maximum()
     {
-        static_assert(std::is_integral<IntType>::value, "Need int type");
+        static_assert(std::is_integral_v<IntType>);
         if( !std::is_signed<IntType>::value )
             return std::numeric_limits<IntType>::max();
         else
@@ -40,8 +40,8 @@ namespace lbu {
     template< typename IntType, typename UIntType >
     constexpr IntType idiv_ceil(IntType num, UIntType den)
     {
-        static_assert(std::is_integral<IntType>::value, "Need int type for numerator");
-        static_assert(std::is_integral<UIntType>::value && !std::is_signed<UIntType>::value, "Need unsigned int type for denominator");
+        static_assert(std::is_integral_v<IntType>, "need int type for numerator");
+        static_assert(std::is_integral_v<UIntType> && ! std::is_signed_v<UIntType>, "need unsigned int type for denominator");
         assert( den > 0 );
         return (num / den) + (num % den > 0 ? 1 : 0);
     }
@@ -51,7 +51,7 @@ namespace lbu {
     template< typename UIntType >
     constexpr UIntType ilog_floor(UIntType base, UIntType val)
     {
-        static_assert(std::is_integral<UIntType>::value && !std::is_signed<UIntType>::value, "Need unsigned int type");
+        static_assert(std::is_integral_v<UIntType> && ! std::is_signed_v<UIntType>, "need unsigned int type");
         assert( base > 1 && val > 0 );
 
         UIntType result = 0;
@@ -131,8 +131,8 @@ namespace lbu {
     template< typename BaseType, typename ExpType >
     constexpr BaseType ipow(BaseType base, ExpType exp)
     {
-        static_assert(std::is_integral<ExpType>::value && !std::is_signed<ExpType>::value, "Need unsigned int type as exponent");
-        static_assert(std::is_integral<BaseType>::value, "Need int type as base");
+        static_assert(std::is_integral_v<ExpType> && ! std::is_signed_v<ExpType>, "need unsigned int type as exponent");
+        static_assert(std::is_integral_v<BaseType>, "need int type as base");
 
         BaseType abs_base = abs(base);
         ExpType exp_tmp = exp;
@@ -149,7 +149,7 @@ namespace lbu {
     template< typename UIntType >
     constexpr UIntType next_greater_pow2(UIntType val)
     {
-        static_assert(std::is_integral<UIntType>::value && !std::is_signed<UIntType>::value, "Need unsigned int type");
+        static_assert(std::is_integral_v<UIntType> && ! std::is_signed_v<UIntType>);
         assert(val <= std::numeric_limits<UIntType>::max() / 2);
 
         for( unsigned i = 1; i < (8 * sizeof(val)); i <<= 1 )
@@ -183,7 +183,7 @@ namespace lbu {
     template< typename UIntType >
     constexpr bool is_pow2(UIntType val)
     {
-        static_assert(std::is_integral<UIntType>::value && !std::is_signed<UIntType>::value, "Need unsigned int type");
+        static_assert(std::is_integral_v<UIntType> && ! std::is_signed_v<UIntType>);
         return val ? (!(val & (val - 1))) : false;
     }
 

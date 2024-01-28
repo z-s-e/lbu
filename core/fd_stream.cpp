@@ -218,7 +218,7 @@ ssize_t fd_output_stream::write_fd(array_ref<io::io_vector> buf_array, Mode mode
     if( manages_buffer() ) {
         assert(buf_array.size() == 1);
 
-        internal_write_size = buffer_offset - buffer_write_offset;
+        internal_write_size = ssize_t(buffer_offset - buffer_write_offset);
         if( internal_write_size > 0 ) {
             internal_array[0] = io::io_vec(buffer_base_ptr + buffer_write_offset, size_t(internal_write_size));
             internal_array[1] = buf_array[0];

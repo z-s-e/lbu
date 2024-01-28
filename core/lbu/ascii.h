@@ -132,13 +132,13 @@ namespace ascii {
             static constexpr size_t max_size() { return MaxDataSize; }
 
         private:
-            static_assert(std::is_integral<T>::value, "Need integral type");
+            static_assert(std::is_integral_v<T>);
             using U = typename std::make_unsigned<T>::type;
 
             static constexpr size_t MaxDataSize =  1 // null terminator
                                                  + 1 // sign
                                                  + 1 + ilog_floor<U>(10, abs_maximum<T>()); // digits
-            static_assert(MaxDataSize < 256, "Unsupported integer type");
+            static_assert(MaxDataSize < 256, "unsupported integer type");
 
             char d[MaxDataSize] = {};
             unsigned char begin = MaxDataSize - 1;
@@ -155,7 +155,7 @@ namespace ascii {
                                          NegativeZero nz)
 
     {
-        static_assert(std::is_integral<T>::value, "Need integral type");
+        static_assert(std::is_integral_v<T>);
 
         using U = typename std::make_unsigned<T>::type;
 

@@ -30,7 +30,7 @@ namespace algorithm {
     template< class SizeType >
     SizeType continuous_slots(SizeType offset, SizeType count, SizeType n)
     {
-        static_assert(std::is_unsigned<SizeType>::value, "Need unsigned type");
+        static_assert(std::is_unsigned_v<SizeType>);
         assert(n > offset);
         return std::min(count, n - offset);
     }
@@ -98,7 +98,7 @@ namespace algorithm {
             return std::numeric_limits<SizeType>::max();
         }
 
-        static_assert(std::is_unsigned<SizeType>::value, "Need unsigned type");
+        static_assert(std::is_unsigned_v<SizeType>);
     };
 
 
@@ -166,7 +166,7 @@ namespace algorithm {
             return std::numeric_limits<SizeType>::max() / 2;
         }
 
-        static_assert(std::is_unsigned<SizeType>::value, "Need unsigned type");
+        static_assert(std::is_unsigned_v<SizeType>);
     };
 
     template< class T, class SizeType >
