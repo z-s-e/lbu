@@ -1,4 +1,4 @@
-/* Copyright 2015-2020 Zeno Sebastian Endemann <zeno.endemann@mailbox.org>
+/* Copyright 2015-2024 Zeno Sebastian Endemann <zeno.endemann@mailbox.org>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -21,23 +21,26 @@ static uint32_t continuous_slots(uint32_t offset, uint32_t count, uint32_t n)
 
 static bool consumer_read(fd f)
 {
-    eventfd_t v;
-    switch( event_fd::read(f, &v) ) {
-    case event_fd::ReadNoError:
-    case event_fd::ReadWouldBlock:
-        return true;
-    default:
-        return false;
-    }
+    eventfd_t tmp;
+    const int r = event_fd::read(f, &tmp);
+    return r == event_fd::ReadNoError || r == event_fd::ReadWouldBlock;
 }
 
 static bool producer_write(fd f)
 {
-    switch( event_fd::write(f, event_fd::MaximumValue) ) {
-    case event_fd::WriteNoError:
-    case event_fd::WriteWouldBlock:
-        return true;
-    default:
+    const int r = event_fd::write(f, event_fd::MaximumValue);
+    return r == event_fd::WriteNoError || r == event_fd::WriteWouldBlock;
+}
+
+static bool wait(fd f, short flags)
+{
+    auto p = poll::poll_fd(f, flags);
+    while( true ) {
+        const int r = ::poll(&p, 1, poll::NoTimeout.count());
+        if( r == 1 )
+            return (p.events & p.revents);
+        if( r == -1 && errno == EINTR)
+            continue;
         return false;
     }
 }
@@ -144,7 +147,7 @@ array_ref<const void> ring_spsc::input_stream::next_buffer(Mode mode)
     if( update_buffer_size(s, consumer_idx, segment_limit, n) || mode == Mode::NonBlocking )
         return current_buffer();
 
-    if( ! poll::wait_for_event(f, poll::FlagsReadReady) )
+    if( ! wait(f, poll::FlagsReadReady) )
         goto error;
 
     if( update_buffer_size(s, consumer_idx, segment_limit, n) )
@@ -156,7 +159,7 @@ array_ref<const void> ring_spsc::input_stream::next_buffer(Mode mode)
     if( update_buffer_size(s, consumer_idx, segment_limit, n) )
         return current_buffer();
 
-    if( ! poll::wait_for_event(f, poll::FlagsReadReady) )
+    if( ! wait(f, poll::FlagsReadReady) )
         goto error;
 
     if( ! update_buffer_size(s, consumer_idx, segment_limit, n) )
@@ -325,7 +328,7 @@ array_ref<void> ring_spsc::output_stream::next_buffer(Mode mode)
     if( update_buffer_size(s, producer_idx, segment_simit, n) || mode == Mode::NonBlocking )
         return current_buffer();
 
-    if( ! poll::wait_for_event(f, poll::FlagsWriteReady) )
+    if( ! wait(f, poll::FlagsWriteReady) )
         goto error;
 
     if( update_buffer_size(s, producer_idx, segment_simit, n) )
@@ -337,7 +340,7 @@ array_ref<void> ring_spsc::output_stream::next_buffer(Mode mode)
     if( update_buffer_size(s, producer_idx, segment_simit, n) )
         return current_buffer();
 
-    if( ! poll::wait_for_event(f, poll::FlagsWriteReady) )
+    if( ! wait(f, poll::FlagsWriteReady) )
         goto error;
 
     if( ! update_buffer_size(s, producer_idx, segment_simit, n) )
@@ -394,7 +397,7 @@ ring_spsc_basic_controller::ring_spsc_basic_controller(uint32_t bufsize)
     auto efd = ring_spsc_shared_data::open_event_fd();
     if( efd.status != event_fd::OpenNoError)
         unexpected_system_error(efd.status);
-    d->filedes = efd.f.release();
+    d->filedes = efd.fd.release();
 }
 
 ring_spsc_basic_controller::~ring_spsc_basic_controller()

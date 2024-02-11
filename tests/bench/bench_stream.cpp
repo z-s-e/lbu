@@ -594,10 +594,9 @@ private Q_SLOTS:
     void RingBlockFd()
     {
         s_producerIdx = s_consumerIdx = 0;
-        auto eventfd = lbu::event_fd::open(0, lbu::event_fd::FlagsNonBlock);
-        QVERIFY(eventfd.status == lbu::event_fd::OpenNoError);
+        auto fd = lbu::event_fd::create(0, lbu::event_fd::FlagsNonBlock);
 
-        std::unique_ptr<Thread_RingBlockFd> t(new Thread_RingBlockFd(eventfd.f.get()));
+        std::unique_ptr<Thread_RingBlockFd> t(new Thread_RingBlockFd(fd.get()));
         lbu::ring_spsc::handle<int>::producer producer;
 
         lbu::ring_spsc::handle<int>::pair_producer_consumer({s_ring_buffer.begin(), s_ring_buffer.end()},
@@ -618,7 +617,7 @@ private Q_SLOTS:
                 auto r = producer.continuous_range();
                 if( r.size() == 0 ) {
                     if( producer.update_available() == 0 ) {
-                        lbu::poll::wait_for_event(eventfd.f.get(), lbu::poll::FlagsWriteReady);
+                        lbu::poll::wait_for_event(fd.get(), lbu::poll::FlagsWriteReady);
                         producer.update_available();
                     }
                     r = producer.continuous_range();
@@ -630,7 +629,7 @@ private Q_SLOTS:
 
                 processed += r.size();
                 producer.publish(r.size());
-                lbu::event_fd::write(eventfd.f.get(), lbu::event_fd::MaximumValue);
+                lbu::event_fd::write(fd.get(), lbu::event_fd::MaximumValue);
             }
 
             t->wait();

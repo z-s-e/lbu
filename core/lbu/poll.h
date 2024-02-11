@@ -7,6 +7,7 @@
 
 #include "lbu/array_ref.h"
 #include "lbu/fd.h"
+#include "lbu/unexpected.h"
 
 #include <chrono>
 #include <poll.h>
@@ -45,31 +46,6 @@ namespace poll {
         d.events = flags;
         d.revents = 0;
         return d;
-    }
-
-    inline short flags(const pollfd* pfd)
-    {
-        return pfd->events;
-    }
-
-    inline void set_flags(pollfd* pfd, short flags)
-    {
-        pfd->events = flags;
-    }
-
-    inline bool has_events(const pollfd* pfd)
-    {
-        return pfd->revents != 0;
-    }
-
-    inline short events(const pollfd* pfd)
-    {
-        return pfd->revents;
-    }
-
-    inline void clear_events(pollfd* pfd)
-    {
-        pfd->revents = 0;
     }
 
 
@@ -214,22 +190,23 @@ namespace poll {
         return ppoll(fds.data(), fds.size(), timeout, sigmask);
     }
 
-    inline bool wait_for_event(pollfd p)
+
+    inline void wait_for_events(pollfd* fds, nfds_t nfds)
     {
         while( true ) {
-            int c = ::poll(&p, 1, NoTimeout.count());
-            if( c == 1 )
-                return (p.events & p.revents);
-            if( c == -1 && errno == EINTR)
+            auto p = poll(fds, nfds);
+            if( p.status == lbu::poll::StatusNoError )
+                return;
+            else if( p.status == lbu::poll::StatusPollInterrupted )
                 continue;
-            return false;
+            lbu::unexpected_system_error(p.status);
         }
     }
 
-    inline bool wait_for_event(fd f, short flags)
-    {
-        return wait_for_event(poll_fd(f, flags));
-    }
+    inline void wait_for_events(array_ref<pollfd> fds) { wait_for_events(fds.data(), fds.size()); }
+
+    inline void wait_for_event(pollfd p) { wait_for_events(&p, 1); }
+    inline void wait_for_event(fd f, short flags) { wait_for_event(poll_fd(f, flags)); }
 
 }
 }

@@ -6,6 +6,7 @@
 #define LIBLBU_EVENTFD_H
 
 #include "lbu/io.h"
+#include "lbu/unexpected.h"
 
 #include <stdint.h>
 #include <sys/eventfd.h>
@@ -45,18 +46,14 @@ namespace event_fd {
     };
 
     struct open_result {
-        unique_fd f;
+        unique_fd fd;
         int status = OpenNoError;
     };
 
     inline open_result open(unsigned initval = 0, int flags = FlagsNone)
     {
-        open_result r;
         int filedes = ::eventfd(initval, flags);
-        r.f.reset(fd(filedes));
-        if( ! r.f )
-            r.status = errno;
-        return r;
+        return open_result{ unique_fd(filedes), filedes < 0 ? errno : 0 };
     }
 
     inline int read(fd f, eventfd_t* dst)
@@ -67,6 +64,33 @@ namespace event_fd {
     inline int write(fd f, eventfd_t src)
     {
         return io::write(f, array_ref<char>(reinterpret_cast<char*>(&src), sizeof(src))).status;
+    }
+
+
+    // higher level wrapper that bail on unlikely errors
+
+    inline unique_fd create(unsigned initval = 0, int flags = FlagsNone)
+    {
+        int filedes = ::eventfd(initval, flags);
+        if( filedes < 0 )
+            unexpected_system_error(errno);
+        return unique_fd(filedes);
+    }
+
+    inline eventfd_t read_value(fd f)
+    {
+        eventfd_t result = 0;
+        if( int err = read(f, &result); err != 0 && err != EAGAIN )
+            lbu::unexpected_system_error(err);
+        return result;
+    }
+
+    inline bool write_value(fd f, eventfd_t value)
+    {
+        int err = write(f, value);
+        if( err != 0 && err != EAGAIN )
+            lbu::unexpected_system_error(err);
+        return err == 0;
     }
 
 }
