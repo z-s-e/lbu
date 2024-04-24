@@ -285,7 +285,7 @@ array_ref<void> ring_spsc::output_stream::get_write_buffer(Mode mode)
 bool ring_spsc::output_stream::write_buffer_flush(Mode)
 {
     next_buffer(Mode::NonBlocking);
-    return !has_error();
+    return ! has_error();
 }
 
 array_ref<void> ring_spsc::output_stream::next_buffer(Mode mode)

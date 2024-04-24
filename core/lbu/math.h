@@ -28,7 +28,7 @@ namespace lbu {
     constexpr typename std::make_unsigned<IntType>::type abs_maximum()
     {
         static_assert(std::is_integral_v<IntType>);
-        if( !std::is_signed<IntType>::value )
+        if( ! std::is_signed<IntType>::value )
             return std::numeric_limits<IntType>::max();
         else
             return std::max<typename std::make_unsigned<IntType>::type>(std::numeric_limits<IntType>::max(),
@@ -184,7 +184,7 @@ namespace lbu {
     constexpr bool is_pow2(UIntType val)
     {
         static_assert(std::is_integral_v<UIntType> && ! std::is_signed_v<UIntType>);
-        return val ? (!(val & (val - 1))) : false;
+        return val ? ( ! (val & (val - 1))) : false;
     }
 
 }

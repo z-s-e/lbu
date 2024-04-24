@@ -183,7 +183,7 @@ namespace detail {
         /// sum of 0 without causing any errors.
         ssize_t direct_read(array_ref<io::io_vector> buf_array, size_t required_read)
         {
-            assert(!manages_buffer());
+            assert( ! manages_buffer());
             return read_stream(buf_array, required_read);
         }
 
@@ -314,7 +314,7 @@ namespace detail {
         /// \p buf_array may be empty or have a combined sum of 0 without causing any errors.
         ssize_t direct_write(array_ref<io::io_vector> buf_array, Mode mode)
         {
-            assert(!manages_buffer());
+            assert( ! manages_buffer());
             return write_stream(buf_array, mode);
         }
 
@@ -373,7 +373,7 @@ namespace detail {
         }
 
     private:
-        char* position = nullptr;
+        char* position = {};
         size_t left = 0;
     };
 
@@ -412,7 +412,7 @@ namespace detail {
         }
 
     private:
-        const char* position = nullptr;
+        const char* position = {};
         size_t left = 0;
     };
 

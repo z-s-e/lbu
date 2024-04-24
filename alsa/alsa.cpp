@@ -98,7 +98,7 @@ snd_pcm_format_t pcm_format_type_mask::best_fallback_signed_linear_pcm_format_ty
     static const format_array FloatFallback[] = {Float, F64, S32, S24, S20, S18, S16};
     static const format_array F64Fallback[] = {F64, Float, S32, S24, S20, S18, S16};
 
-    assert( ! snd_pcm_format_mask_test(mask, type) );
+    assert( ! snd_pcm_format_mask_test(mask, type));
 
     fallback_array fallback;
 

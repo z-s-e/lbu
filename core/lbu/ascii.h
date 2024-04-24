@@ -68,7 +68,7 @@ namespace ascii {
 
     constexpr bool is_punct(char c)
     {
-        return is_graph(c) && !is_alnum(c);
+        return is_graph(c) && ! is_alnum(c);
     }
 
     constexpr bool is_hexdigit(char c)

@@ -58,9 +58,9 @@ namespace lbu {
         assert(spec.is_valid());
         if( spec.align <= alignof(max_align_t) )
             return malloc_bytes<char>(spec.size);
-        void* p = nullptr;
+        void* p = {};
         if( ::posix_memalign(&p, spec.align, spec.size) != 0 )
-            return nullptr;
+            return {};
         return p;
     }
 
