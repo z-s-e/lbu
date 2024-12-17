@@ -37,13 +37,18 @@ namespace lbu {
 
     // integer div
 
-    template< typename IntType, typename UIntType >
-    constexpr IntType idiv_ceil(IntType num, UIntType den)
+    template< typename IntType >
+    constexpr IntType idiv_ceil(IntType num, IntType den)
     {
-        static_assert(std::is_integral_v<IntType>, "need int type for numerator");
-        static_assert(std::is_integral_v<UIntType> && ! std::is_signed_v<UIntType>, "need unsigned int type for denominator");
-        assert( den > 0 );
+        static_assert(std::is_integral_v<IntType>, "need int type");
         return (num / den) + (num % den > 0 ? 1 : 0);
+    }
+
+    template< typename IntType >
+    constexpr IntType idiv_floor(IntType num, IntType den)
+    {
+        static_assert(std::is_integral_v<IntType>, "need int type");
+        return (num / den) - (num % den < 0 ? 1 : 0);
     }
 
     // integer log
