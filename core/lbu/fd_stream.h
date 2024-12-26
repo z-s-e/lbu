@@ -6,8 +6,6 @@
 #define LIBLBU_FD_STREAM_H
 
 #include "lbu/abstract_stream.h"
-#include "lbu/fd.h"
-#include "lbu/io.h"
 
 namespace lbu {
 namespace stream {

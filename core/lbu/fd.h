@@ -28,7 +28,7 @@ namespace lbu {
             assert(c == 0 || errno != EBADF);
         }
 
-        inline bool is_nonblock(int* error)
+        inline bool is_nonblock(int* error) const
         {
             int f = ::fcntl(value, F_GETFL, 0);
             if( f == -1 )
@@ -51,7 +51,7 @@ namespace lbu {
             return true;
         }
 
-        inline bool is_cloexec(int* error)
+        inline bool is_cloexec(int* error) const
         {
             int f = ::fcntl(value, F_GETFD, 0);
             if( f == -1 )

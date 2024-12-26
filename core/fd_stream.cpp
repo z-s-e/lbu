@@ -84,7 +84,7 @@ ssize_t fd_input_stream::read_stream(array_ref<io::io_vector> buf_array, size_t 
             }
         }
 
-        if( buf_array[0].iov_len <= buffer_capacity) {
+        if( buf_array[0].iov_len <= buffer_capacity ) {
             // Only fill the internal buffer if the requested read size fits in the buffer.
             // Rationale: It is likely that the user will continue reading in large blocks,
             //            where using the internal buffer might be actually worse for

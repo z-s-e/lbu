@@ -349,7 +349,7 @@ namespace detail {
 
         void reset(array_ref<void> dst)
         {
-            position = reinterpret_cast<char*>(dst.data());
+            position = static_cast<char*>(dst.data());
             left = dst.byte_size();
         }
 
@@ -388,7 +388,7 @@ namespace detail {
 
         void reset(array_ref<const void> src)
         {
-            position = reinterpret_cast<const char*>(src.data());
+            position = static_cast<const char*>(src.data());
             left = src.byte_size();
         }
 
