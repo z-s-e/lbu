@@ -3,7 +3,7 @@ project(lbu)
 
 set(LIBLBU_VERSION_MAJOR 0)
 set(LIBLBU_VERSION_MINOR 1)
-set(LIBLBU_VERSION_PATCH 22)
+set(LIBLBU_VERSION_PATCH 23)
 set(LIBLBU_VERSION "${LIBLBU_VERSION_MAJOR}.${LIBLBU_VERSION_MINOR}.${LIBLBU_VERSION_PATCH}")
 
 option(LBU_BUILD_STATIC "Build lbu as a static library" OFF)
@@ -57,6 +57,7 @@ set(lbu_core_src
     core/poll.cpp
     core/ring_spsc.cpp
     core/ring_spsc_stream.cpp
+    core/triple_buffer_spsc.cpp
     core/unexpected.cpp
 )
 set(lbu_core_hdr
@@ -78,6 +79,7 @@ set(lbu_core_hdr
     core/lbu/poll.h
     core/lbu/ring_spsc.h
     core/lbu/ring_spsc_stream.h
+    core/lbu/triple_buffer_spsc.h
     core/lbu/unexpected.h
 )
 
