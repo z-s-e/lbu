@@ -38,7 +38,7 @@ namespace algorithm {
     template< class SizeType >
     class reserved_slot {
     public:
-        static bool producer_has_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
+        static bool producer_has_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
             const auto p = producer_index;
             const auto c = consumer_index;
@@ -47,7 +47,7 @@ namespace algorithm {
             return (c == 0 ? (p != n - 1) : (p != c - 1));
         }
 
-        static SizeType producer_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
+        static SizeType producer_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
             const auto p = producer_index;
             const auto c = consumer_index;
@@ -56,7 +56,7 @@ namespace algorithm {
             return (p >= c ? (n - p + c) : (c - p)) - 1;
         }
 
-        static bool consumer_has_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
+        static bool consumer_has_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
             const auto p = producer_index;
             const auto c = consumer_index;
@@ -65,7 +65,7 @@ namespace algorithm {
             return p != c;
         }
 
-        static SizeType consumer_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
+        static SizeType consumer_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
             const auto p = producer_index;
             const auto c = consumer_index;
@@ -105,7 +105,7 @@ namespace algorithm {
     template< class SizeType >
     class mirrored_index {
     public:
-        static bool producer_has_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
+        static bool producer_has_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
             const auto p = producer_index;
             const auto c = consumer_index;
@@ -114,7 +114,7 @@ namespace algorithm {
             return (p > c ? (p - c) : (c - p)) != n;
         }
 
-        static SizeType producer_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
+        static SizeType producer_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
             const auto p = producer_index;
             const auto c = consumer_index;
@@ -124,7 +124,7 @@ namespace algorithm {
         }
 
 
-        static bool consumer_has_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
+        static bool consumer_has_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
             const auto p = producer_index;
             const auto c = consumer_index;
@@ -133,7 +133,7 @@ namespace algorithm {
             return p != c;
         }
 
-        static SizeType consumer_free_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
+        static SizeType consumer_slots(SizeType producer_index, SizeType consumer_index, SizeType n)
         {
             const auto p = producer_index;
             const auto c = consumer_index;
@@ -189,9 +189,7 @@ namespace algorithm {
             std::atomic<SizeType>* shared_producer_index = {};
             std::atomic<SizeType>* shared_consumer_index = {};
 
-            void reset(array_ref<T, SizeType> buf,
-                       std::atomic<SizeType>* p,
-                       std::atomic<SizeType>* c)
+            void reset(array_ref<T, SizeType> buf, std::atomic<SizeType>* p, std::atomic<SizeType>* c)
             {
                 buffer = buf;
                 shared_producer_index = p;
@@ -208,13 +206,9 @@ namespace algorithm {
         class producer {
         public:
             producer() = default;
-            producer(array_ref<T, SizeType> buf,
-                     shared_index* producer_index,
-                     shared_index* consumer_index);
+            producer(array_ref<T, SizeType> buf, shared_index* producer_index, shared_index* consumer_index);
 
-            void reset(array_ref<T, SizeType> buf,
-                       shared_index* producer_index,
-                       shared_index* consumer_index);
+            void reset(array_ref<T, SizeType> buf, shared_index* producer_index, shared_index* consumer_index);
 
             SizeType update_available();
             void publish(SizeType count);
@@ -235,13 +229,9 @@ namespace algorithm {
         class consumer {
         public:
             consumer() = default;
-            consumer(array_ref<T, SizeType> buf,
-                     shared_index* producer_index,
-                     shared_index* consumer_index);
+            consumer(array_ref<T, SizeType> buf, shared_index* producer_index, shared_index* consumer_index);
 
-            void reset(array_ref<T, SizeType> buf,
-                       shared_index* producer_index,
-                       shared_index* consumer_index);
+            void reset(array_ref<T, SizeType> buf, shared_index* producer_index, shared_index* consumer_index);
 
             SizeType update_available();
             void release(SizeType count);
@@ -300,7 +290,7 @@ namespace algorithm {
     template< class T, class SizeType, class BufferAlg >
     inline SizeType handle<T, SizeType, BufferAlg>::producer::last_available() const
     {
-        return BufferAlg::producer_free_slots(d.local_producer_index, d.local_consumer_index, d.buffer.size());
+        return BufferAlg::producer_slots(d.local_producer_index, d.local_consumer_index, d.buffer.size());
     }
 
     template< class T, class SizeType, class BufferAlg >
@@ -354,7 +344,7 @@ namespace algorithm {
     template< class T, class SizeType, class BufferAlg >
     inline SizeType handle<T, SizeType, BufferAlg>::consumer::last_available() const
     {
-        return BufferAlg::consumer_free_slots(d.local_producer_index, d.local_consumer_index, d.buffer.size());
+        return BufferAlg::consumer_slots(d.local_producer_index, d.local_consumer_index, d.buffer.size());
     }
 
     template< class T, class SizeType, class BufferAlg >

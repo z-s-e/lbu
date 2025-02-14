@@ -179,7 +179,7 @@ bool ring_spsc::input_stream::update_buffer_size(ring_spsc_shared_data* shared,
     const auto producer_index = shared->producer_index.load(std::memory_order_acquire);
     const auto n = ring_size;
     auto b = continuous_slots(alg::offset(consumer_index, n),
-                              alg::consumer_free_slots(producer_index, consumer_index, n),
+                              alg::consumer_slots(producer_index, consumer_index, n),
                               n);
     buffer_available = std::min(segment_limit, b);
     if( buffer_available == 0 && shared->eos.load(std::memory_order_acquire) ) {
@@ -361,7 +361,7 @@ bool ring_spsc::output_stream::update_buffer_size(ring_spsc_shared_data* shared,
     uint32_t consumer_index = shared->consumer_index.load(std::memory_order_acquire);
     const auto n = ring_size;
     auto b = continuous_slots(alg::offset(producer_index, n),
-                              alg::producer_free_slots(producer_index, consumer_index, n),
+                              alg::producer_slots(producer_index, consumer_index, n),
                               n);
     buffer_available = std::min(segment_limit, b);
     return buffer_available > 0;
