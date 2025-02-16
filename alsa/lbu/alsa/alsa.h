@@ -121,6 +121,16 @@ namespace alsa {
         snd_pcm_uframes_t offset = 0;
         snd_pcm_uframes_t frames = 0;
 
+        static int16_t read_i16(const void* src, snd_pcm_format_t type);
+        static int32_t read_i32(const void* src, snd_pcm_format_t type);
+        static float read_f(const void* src, snd_pcm_format_t type);
+        static double read_d(const void* src, snd_pcm_format_t type);
+
+        static void write_i16(void* dst, int16_t value, snd_pcm_format_t type);
+        static void write_i32(void* dst, int32_t value, snd_pcm_format_t type);
+        static void write_f(void* dst, float value, snd_pcm_format_t type);
+        static void write_d(void* dst, double value, snd_pcm_format_t type);
+
         class channel_iter {
         public:
             channel_iter() = default;
@@ -133,18 +143,18 @@ namespace alsa {
             channel_iter& operator++();
             channel_iter& operator--();
 
-            int16_t read_i16(snd_pcm_format_t type) const;
-            int32_t read_i32(snd_pcm_format_t type) const;
-            float read_f(snd_pcm_format_t type) const;
-            double read_d(snd_pcm_format_t type) const;
+            int16_t read_i16(snd_pcm_format_t type) const { return pcm_buffer::read_i16(d, type); }
+            int32_t read_i32(snd_pcm_format_t type) const { return pcm_buffer::read_i32(d, type); }
+            float read_f(snd_pcm_format_t type) const { return pcm_buffer::read_f(d, type); }
+            double read_d(snd_pcm_format_t type) const { return pcm_buffer::read_d(d, type); }
 
             template< typename T >
             T read(snd_pcm_format_t type) const;
 
-            void write_i16(int16_t value, snd_pcm_format_t type);
-            void write_i32(int32_t value, snd_pcm_format_t type);
-            void write_f(float value, snd_pcm_format_t type);
-            void write_d(double value, snd_pcm_format_t type);
+            void write_i16(int16_t value, snd_pcm_format_t type) { pcm_buffer::write_i16(d, value, type); }
+            void write_i32(int32_t value, snd_pcm_format_t type) { pcm_buffer::write_i32(d, value, type); }
+            void write_f(float value, snd_pcm_format_t type) { pcm_buffer::write_f(d, value, type); }
+            void write_d(double value, snd_pcm_format_t type) { pcm_buffer::write_d(d, value, type); }
 
             template< typename T >
             void write(T value, snd_pcm_format_t type);
@@ -568,172 +578,124 @@ namespace alsa {
         return packed_byte_size(linear_pcm_type) * channels;
     }
 
-    inline pcm_buffer::channel_iter pcm_buffer::begin(unsigned channel) const
-    {
-        assert((areas[channel].first & 7) == 0);
-        assert((areas[channel].step & 7) == 0);
+    inline bool operator==(pcm_format l, pcm_format r) { return l.type == r.type && l.channels == r.channels && l.rate == r.rate; }
+    inline bool operator!=(pcm_format l, pcm_format r) { return ! (l == r); }
 
-        const unsigned stride = (areas[channel].step >> 3);
-        char* addr = static_cast<char*>(areas[channel].addr);
-        addr += (areas[channel].first >> 3);
-        addr += stride * offset;
-        return {addr, stride};
-    }
 
-    inline pcm_buffer::channel_iter::channel_iter(void* data, unsigned stride)
-        : d(data), stride(stride)
-    {}
-
-    inline pcm_buffer::channel_iter& pcm_buffer::channel_iter::operator++()
-    {
-        d = static_cast<char*>(d) + stride;
-        return *this;
-    }
-
-    inline pcm_buffer::channel_iter& pcm_buffer::channel_iter::operator--()
-    {
-        d = static_cast<char*>(d) - stride;
-        return *this;
-    }
-
-    inline int16_t pcm_buffer::channel_iter::read_i16(snd_pcm_format_t type) const
+    inline int16_t pcm_buffer::read_i16(const void* src, snd_pcm_format_t type)
     {
         switch( type ) {
         case SND_PCM_FORMAT_S16_BE:
-            return from_big_endian<int16_t>(d);
+            return from_big_endian<int16_t>(src);
         case SND_PCM_FORMAT_S16_LE:
-            return from_little_endian<int16_t>(d);
+            return from_little_endian<int16_t>(src);
         default:
             assert(false);
             return 0;
         }
     }
 
-    inline int32_t pcm_buffer::channel_iter::read_i32(snd_pcm_format_t type) const
+    inline int32_t pcm_buffer::read_i32(const void* src, snd_pcm_format_t type)
     {
         switch( type ) {
         case SND_PCM_FORMAT_S16_BE:
         case SND_PCM_FORMAT_S16_LE:
-            return read_i16(type);
+            return read_i16(src, type);
         case SND_PCM_FORMAT_S24_LE:
         case SND_PCM_FORMAT_S24_3LE:
-            return from_little_endian_s24_packed(d);
+            return from_little_endian_s24_packed(src);
         case SND_PCM_FORMAT_S20_LE:
         case SND_PCM_FORMAT_S20_3LE: {
-            auto v = from_little_endian_u24_packed(d);
-            if( v >= (uint32_t(1) << 19) )
-                v |= uint32_t(0xfff) << 20;
-            return value_reinterpret_cast<uint32_t, int32_t>(v);
-        }
+                auto v = from_little_endian_u24_packed(src);
+                if( v >= (uint32_t(1) << 19) )
+                    v |= uint32_t(0xfff) << 20;
+                return value_reinterpret_cast<uint32_t, int32_t>(v);
+            }
         case SND_PCM_FORMAT_S18_3LE: {
-            auto v = from_little_endian_u24_packed(d);
-            if( v >= (uint32_t(1) << 17) )
-                v |= uint32_t(0xfffc) << 16;
-            return value_reinterpret_cast<uint32_t, int32_t>(v);
-        }
+                auto v = from_little_endian_u24_packed(src);
+                if( v >= (uint32_t(1) << 17) )
+                    v |= uint32_t(0xfffc) << 16;
+                return value_reinterpret_cast<uint32_t, int32_t>(v);
+            }
         case SND_PCM_FORMAT_S24_BE:
-            return from_big_endian_s24_packed(static_cast<const char*>(d) + 1);
+            return from_big_endian_s24_packed(static_cast<const char*>(src) + 1);
         case SND_PCM_FORMAT_S24_3BE:
-            return from_big_endian_s24_packed(d);
+            return from_big_endian_s24_packed(src);
         case SND_PCM_FORMAT_S20_BE: {
-            auto v = from_big_endian_u24_packed(static_cast<const char*>(d) + 1);
-            if( v >= (uint32_t(1) << 19) )
-                v |= uint32_t(0xfff) << 20;
-            return value_reinterpret_cast<uint32_t, int32_t>(v);
-        }
+                auto v = from_big_endian_u24_packed(static_cast<const char*>(src) + 1);
+                if( v >= (uint32_t(1) << 19) )
+                    v |= uint32_t(0xfff) << 20;
+                return value_reinterpret_cast<uint32_t, int32_t>(v);
+            }
         case SND_PCM_FORMAT_S20_3BE: {
-            auto v = from_big_endian_u24_packed(d);
-            if( v >= (uint32_t(1) << 19) )
-                v |= uint32_t(0xfff) << 20;
-            return value_reinterpret_cast<uint32_t, int32_t>(v);
-        }
+                auto v = from_big_endian_u24_packed(src);
+                if( v >= (uint32_t(1) << 19) )
+                    v |= uint32_t(0xfff) << 20;
+                return value_reinterpret_cast<uint32_t, int32_t>(v);
+            }
         case SND_PCM_FORMAT_S18_3BE: {
-            auto v = from_big_endian_u24_packed(d);
-            if( v >= (uint32_t(1) << 17) )
-                v |= uint32_t(0xfffc) << 16;
-            return value_reinterpret_cast<uint32_t, int32_t>(v);
-        }
+                auto v = from_big_endian_u24_packed(src);
+                if( v >= (uint32_t(1) << 17) )
+                    v |= uint32_t(0xfffc) << 16;
+                return value_reinterpret_cast<uint32_t, int32_t>(v);
+            }
         case SND_PCM_FORMAT_S32_LE:
-            return from_little_endian<int32_t>(d);
+            return from_little_endian<int32_t>(src);
         case SND_PCM_FORMAT_S32_BE:
-            return from_big_endian<int32_t>(d);
+            return from_big_endian<int32_t>(src);
         default:
             assert(false);
             return 0;
         }
     }
 
-    inline float pcm_buffer::channel_iter::read_f(snd_pcm_format_t type) const
+    inline float pcm_buffer::read_f(const void* src, snd_pcm_format_t type)
     {
         switch( type ) {
         case SND_PCM_FORMAT_FLOAT_BE:
-            return from_big_endian<float>(d);
+            return from_big_endian<float>(src);
         case SND_PCM_FORMAT_FLOAT_LE:
-            return from_little_endian<float>(d);
+            return from_little_endian<float>(src);
         default:
             assert(false);
             return 0;
         }
     }
 
-    inline double pcm_buffer::channel_iter::read_d(snd_pcm_format_t type) const
+    inline double pcm_buffer::read_d(const void* src, snd_pcm_format_t type)
     {
         switch( type ) {
         case SND_PCM_FORMAT_FLOAT64_BE:
-            return from_big_endian<double>(d);
+            return from_big_endian<double>(src);
         case SND_PCM_FORMAT_FLOAT64_LE:
-            return from_little_endian<double>(d);
+            return from_little_endian<double>(src);
         default:
             assert(false);
             return 0;
         }
     }
 
-    template<>
-    inline int16_t pcm_buffer::channel_iter::read<int16_t>(snd_pcm_format_t type) const
-    {
-        return read_i16(type);
-    }
-
-    template<>
-    inline int32_t pcm_buffer::channel_iter::read<int32_t>(snd_pcm_format_t type) const
-    {
-        return read_i32(type);
-    }
-
-    template<>
-    inline float pcm_buffer::channel_iter::read<float>(snd_pcm_format_t type) const
-    {
-        return read_f(type);
-    }
-
-    template<>
-    inline double pcm_buffer::channel_iter::read<double>(snd_pcm_format_t type) const
-    {
-        return read_d(type);
-    }
-
-    inline void pcm_buffer::channel_iter::write_i16(int16_t value, snd_pcm_format_t type)
+    inline void pcm_buffer::write_i16(void* dst, int16_t value, snd_pcm_format_t type)
     {
         switch( type ) {
         case SND_PCM_FORMAT_S16_BE:
-            to_big_endian(value, d);
+            to_big_endian(value, dst);
             break;
         case SND_PCM_FORMAT_S16_LE:
-            to_little_endian(value, d);
+            to_little_endian(value, dst);
             break;
         default:
             assert(false);
         }
     }
 
-    inline void pcm_buffer::channel_iter::write_i32(int32_t value, snd_pcm_format_t type)
+    inline void pcm_buffer::write_i32(void* dst, int32_t value, snd_pcm_format_t type)
     {
         char v[4];
         switch( type ) {
         case SND_PCM_FORMAT_S16_BE:
         case SND_PCM_FORMAT_S16_LE:
-            write_i16(value, type);
+            write_i16(dst, value, type);
             return;
         case SND_PCM_FORMAT_S18_3BE:
         case SND_PCM_FORMAT_S20_BE:
@@ -762,74 +724,102 @@ namespace alsa {
         case SND_PCM_FORMAT_S24_BE:
         case SND_PCM_FORMAT_S32_LE:
         case SND_PCM_FORMAT_S32_BE:
-            std::memcpy(d, v, 4);
+            std::memcpy(dst, v, 4);
             break;
         case SND_PCM_FORMAT_S24_3LE:
         case SND_PCM_FORMAT_S20_3LE:
         case SND_PCM_FORMAT_S18_3LE:
-            std::memcpy(d, v, 3);
+            std::memcpy(dst, v, 3);
             break;
         case SND_PCM_FORMAT_S24_3BE:
         case SND_PCM_FORMAT_S20_3BE:
         case SND_PCM_FORMAT_S18_3BE:
-            std::memcpy(d, (v + 1), 3);
+            std::memcpy(dst, (v + 1), 3);
             break;
         default:
             assert(false);
         }
     }
 
-    inline void pcm_buffer::channel_iter::write_f(float value, snd_pcm_format_t type)
+    inline void pcm_buffer::write_f(void* dst, float value, snd_pcm_format_t type)
     {
         switch( type ) {
         case SND_PCM_FORMAT_FLOAT_BE:
-            to_big_endian(value, d);
+            to_big_endian(value, dst);
             break;
         case SND_PCM_FORMAT_FLOAT_LE:
-            to_little_endian(value, d);
+            to_little_endian(value, dst);
             break;
         default:
             assert(false);
         }
     }
 
-    inline void pcm_buffer::channel_iter::write_d(double value, snd_pcm_format_t type)
+    inline void pcm_buffer::write_d(void* dst, double value, snd_pcm_format_t type)
     {
         switch( type ) {
         case SND_PCM_FORMAT_FLOAT64_BE:
-            to_big_endian(value, d);
+            to_big_endian(value, dst);
             break;
         case SND_PCM_FORMAT_FLOAT64_LE:
-            to_little_endian(value, d);
+            to_little_endian(value, dst);
             break;
         default:
             assert(false);
         }
     }
 
-    template<>
-    inline void pcm_buffer::channel_iter::write<int16_t>(int16_t value, snd_pcm_format_t type)
+    inline pcm_buffer::channel_iter pcm_buffer::begin(unsigned channel) const
     {
-        write_i16(value, type);
+        assert((areas[channel].first & 7) == 0);
+        assert((areas[channel].step & 7) == 0);
+
+        const unsigned stride = (areas[channel].step >> 3);
+        char* addr = static_cast<char*>(areas[channel].addr);
+        addr += (areas[channel].first >> 3);
+        addr += stride * offset;
+        return {addr, stride};
+    }
+
+    inline pcm_buffer::channel_iter::channel_iter(void* data, unsigned stride)
+        : d(data), stride(stride)
+    {}
+
+    inline pcm_buffer::channel_iter& pcm_buffer::channel_iter::operator++()
+    {
+        d = static_cast<char*>(d) + stride;
+        return *this;
+    }
+
+    inline pcm_buffer::channel_iter& pcm_buffer::channel_iter::operator--()
+    {
+        d = static_cast<char*>(d) - stride;
+        return *this;
     }
 
     template<>
-    inline void pcm_buffer::channel_iter::write<int32_t>(int32_t value, snd_pcm_format_t type)
-    {
-        write_i32(value, type);
-    }
+    inline int16_t pcm_buffer::channel_iter::read<int16_t>(snd_pcm_format_t type) const { return pcm_buffer::read_i16(d, type); }
 
     template<>
-    inline void pcm_buffer::channel_iter::write<float>(float value, snd_pcm_format_t type)
-    {
-        write_f(value, type);
-    }
+    inline int32_t pcm_buffer::channel_iter::read<int32_t>(snd_pcm_format_t type) const { return pcm_buffer::read_i32(d, type); }
 
     template<>
-    inline void pcm_buffer::channel_iter::write<double>(double value, snd_pcm_format_t type)
-    {
-        write_d(value, type);
-    }
+    inline float pcm_buffer::channel_iter::read<float>(snd_pcm_format_t type) const { return pcm_buffer::read_f(d, type); }
+
+    template<>
+    inline double pcm_buffer::channel_iter::read<double>(snd_pcm_format_t type) const { return pcm_buffer::read_d(d, type); }
+
+    template<>
+    inline void pcm_buffer::channel_iter::write<int16_t>(int16_t value, snd_pcm_format_t type) { pcm_buffer::write_i16(d, value, type); }
+
+    template<>
+    inline void pcm_buffer::channel_iter::write<int32_t>(int32_t value, snd_pcm_format_t type) { pcm_buffer::write_i32(d, value, type); }
+
+    template<>
+    inline void pcm_buffer::channel_iter::write<float>(float value, snd_pcm_format_t type) { pcm_buffer::write_f(d, value, type); }
+
+    template<>
+    inline void pcm_buffer::channel_iter::write<double>(double value, snd_pcm_format_t type) { pcm_buffer::write_d(d, value, type); }
 
     inline pcm_device::pcm_device(const char* device_name, snd_pcm_stream_t dir, int flags, alsa_error* error)
     {
