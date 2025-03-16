@@ -1,4 +1,4 @@
-/* Copyright 2015-2023 Zeno Sebastian Endemann <zeno.endemann@mailbox.org>
+/* Copyright 2015-2025 Zeno Sebastian Endemann <zeno.endemann@mailbox.org>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -106,7 +106,7 @@ namespace alsa {
         uint32_t rate = 0;
 
         static bool is_linear_pcm_format_type(snd_pcm_format_t type);
-        static bool is_signed_linear_pcm_format_type(snd_pcm_format_t type);
+        static bool is_standard_pcm_format_type(snd_pcm_format_t type);
 
         static unsigned native_byte_size(snd_pcm_format_t linear_pcm_type);
         static unsigned packed_byte_size(snd_pcm_format_t linear_pcm_type);
@@ -220,8 +220,8 @@ namespace alsa {
 
         static uint32_t LIBLBU_EXPORT set_best_matching_sample_rate(snd_pcm_t* pcm, snd_pcm_hw_params_t* hw_params,
                                                                     uint32_t rate, alsa_error* error = nullptr);
-        static snd_pcm_format_t LIBLBU_EXPORT set_best_signed_linear_pcm_format_type(snd_pcm_t* pcm, snd_pcm_hw_params_t* hw_params,
-                                                                                     snd_pcm_format_t type, alsa_error* error = nullptr);
+        static snd_pcm_format_t LIBLBU_EXPORT set_best_standard_pcm_format_type(snd_pcm_t* pcm, snd_pcm_hw_params_t* hw_params,
+                                                                                snd_pcm_format_t type, alsa_error* error = nullptr);
 
     private:
         snd_pcm_hw_params_t* hw_params = {};
@@ -255,7 +255,7 @@ namespace alsa {
         snd_pcm_format_mask_t* handle() const { return mask; }
         operator snd_pcm_format_mask_t*() const { return handle(); }
 
-        static snd_pcm_format_t LIBLBU_EXPORT best_fallback_signed_linear_pcm_format_type(const snd_pcm_format_mask_t* mask, snd_pcm_format_t type);
+        static snd_pcm_format_t LIBLBU_EXPORT best_fallback_standard_pcm_format_type(const snd_pcm_format_mask_t* mask, snd_pcm_format_t type);
 
     private:
         snd_pcm_format_mask_t* mask = {};
@@ -445,18 +445,11 @@ namespace alsa {
         }
     }
 
-    inline bool pcm_format::is_signed_linear_pcm_format_type(snd_pcm_format_t type)
+    inline bool pcm_format::is_standard_pcm_format_type(snd_pcm_format_t type)
     {
         switch( type ) {
-        case SND_PCM_FORMAT_S8:
         case SND_PCM_FORMAT_S16_LE:
         case SND_PCM_FORMAT_S16_BE:
-        case SND_PCM_FORMAT_S18_3LE:
-        case SND_PCM_FORMAT_S18_3BE:
-        case SND_PCM_FORMAT_S20_LE:
-        case SND_PCM_FORMAT_S20_BE:
-        case SND_PCM_FORMAT_S20_3LE:
-        case SND_PCM_FORMAT_S20_3BE:
         case SND_PCM_FORMAT_S24_LE:
         case SND_PCM_FORMAT_S24_BE:
         case SND_PCM_FORMAT_S24_3LE:
@@ -585,10 +578,8 @@ namespace alsa {
     inline int16_t pcm_buffer::read_i16(const void* src, snd_pcm_format_t type)
     {
         switch( type ) {
-        case SND_PCM_FORMAT_S16_BE:
-            return from_big_endian<int16_t>(src);
-        case SND_PCM_FORMAT_S16_LE:
-            return from_little_endian<int16_t>(src);
+        case SND_PCM_FORMAT_S16_LE:     return from_little_endian<int16_t>(src);
+        case SND_PCM_FORMAT_S16_BE:     return from_big_endian<int16_t>(src);
         default:
             assert(false);
             return 0;
@@ -598,47 +589,17 @@ namespace alsa {
     inline int32_t pcm_buffer::read_i32(const void* src, snd_pcm_format_t type)
     {
         switch( type ) {
-        case SND_PCM_FORMAT_S16_BE:
         case SND_PCM_FORMAT_S16_LE:
-            return read_i16(src, type);
+            return read_i16(src, SND_PCM_FORMAT_S16_LE);
+        case SND_PCM_FORMAT_S16_BE:
+            return read_i16(src, SND_PCM_FORMAT_S16_BE);
         case SND_PCM_FORMAT_S24_LE:
         case SND_PCM_FORMAT_S24_3LE:
             return from_little_endian_s24_packed(src);
-        case SND_PCM_FORMAT_S20_LE:
-        case SND_PCM_FORMAT_S20_3LE: {
-                auto v = from_little_endian_u24_packed(src);
-                if( v >= (uint32_t(1) << 19) )
-                    v |= uint32_t(0xfff) << 20;
-                return value_reinterpret_cast<uint32_t, int32_t>(v);
-            }
-        case SND_PCM_FORMAT_S18_3LE: {
-                auto v = from_little_endian_u24_packed(src);
-                if( v >= (uint32_t(1) << 17) )
-                    v |= uint32_t(0xfffc) << 16;
-                return value_reinterpret_cast<uint32_t, int32_t>(v);
-            }
         case SND_PCM_FORMAT_S24_BE:
             return from_big_endian_s24_packed(static_cast<const char*>(src) + 1);
         case SND_PCM_FORMAT_S24_3BE:
             return from_big_endian_s24_packed(src);
-        case SND_PCM_FORMAT_S20_BE: {
-                auto v = from_big_endian_u24_packed(static_cast<const char*>(src) + 1);
-                if( v >= (uint32_t(1) << 19) )
-                    v |= uint32_t(0xfff) << 20;
-                return value_reinterpret_cast<uint32_t, int32_t>(v);
-            }
-        case SND_PCM_FORMAT_S20_3BE: {
-                auto v = from_big_endian_u24_packed(src);
-                if( v >= (uint32_t(1) << 19) )
-                    v |= uint32_t(0xfff) << 20;
-                return value_reinterpret_cast<uint32_t, int32_t>(v);
-            }
-        case SND_PCM_FORMAT_S18_3BE: {
-                auto v = from_big_endian_u24_packed(src);
-                if( v >= (uint32_t(1) << 17) )
-                    v |= uint32_t(0xfffc) << 16;
-                return value_reinterpret_cast<uint32_t, int32_t>(v);
-            }
         case SND_PCM_FORMAT_S32_LE:
             return from_little_endian<int32_t>(src);
         case SND_PCM_FORMAT_S32_BE:
@@ -652,10 +613,8 @@ namespace alsa {
     inline float pcm_buffer::read_f(const void* src, snd_pcm_format_t type)
     {
         switch( type ) {
-        case SND_PCM_FORMAT_FLOAT_BE:
-            return from_big_endian<float>(src);
-        case SND_PCM_FORMAT_FLOAT_LE:
-            return from_little_endian<float>(src);
+        case SND_PCM_FORMAT_FLOAT_LE:   return from_little_endian<float>(src);
+        case SND_PCM_FORMAT_FLOAT_BE:   return from_big_endian<float>(src);
         default:
             assert(false);
             return 0;
@@ -665,10 +624,8 @@ namespace alsa {
     inline double pcm_buffer::read_d(const void* src, snd_pcm_format_t type)
     {
         switch( type ) {
-        case SND_PCM_FORMAT_FLOAT64_BE:
-            return from_big_endian<double>(src);
-        case SND_PCM_FORMAT_FLOAT64_LE:
-            return from_little_endian<double>(src);
+        case SND_PCM_FORMAT_FLOAT64_LE: return from_little_endian<double>(src);
+        case SND_PCM_FORMAT_FLOAT64_BE: return from_big_endian<double>(src);
         default:
             assert(false);
             return 0;
@@ -678,11 +635,11 @@ namespace alsa {
     inline void pcm_buffer::write_i16(void* dst, int16_t value, snd_pcm_format_t type)
     {
         switch( type ) {
-        case SND_PCM_FORMAT_S16_BE:
-            to_big_endian(value, dst);
-            break;
         case SND_PCM_FORMAT_S16_LE:
             to_little_endian(value, dst);
+            break;
+        case SND_PCM_FORMAT_S16_BE:
+            to_big_endian(value, dst);
             break;
         default:
             assert(false);
@@ -691,64 +648,44 @@ namespace alsa {
 
     inline void pcm_buffer::write_i32(void* dst, int32_t value, snd_pcm_format_t type)
     {
-        char v[4];
+        char v[4] = {};
         switch( type ) {
-        case SND_PCM_FORMAT_S16_BE:
         case SND_PCM_FORMAT_S16_LE:
-            write_i16(dst, value, type);
+            write_i16(dst, value, SND_PCM_FORMAT_S16_LE);
             return;
-        case SND_PCM_FORMAT_S18_3BE:
-        case SND_PCM_FORMAT_S20_BE:
-        case SND_PCM_FORMAT_S20_3BE:
-        case SND_PCM_FORMAT_S24_BE:
-        case SND_PCM_FORMAT_S24_3BE:
-        case SND_PCM_FORMAT_S32_BE:
-            to_big_endian(value, v);
-            break;
-        case SND_PCM_FORMAT_S18_3LE:
-        case SND_PCM_FORMAT_S20_LE:
-        case SND_PCM_FORMAT_S20_3LE:
-        case SND_PCM_FORMAT_S24_LE:
+        case SND_PCM_FORMAT_S16_BE:
+            write_i16(dst, value, SND_PCM_FORMAT_S16_BE);
+            return;
         case SND_PCM_FORMAT_S24_3LE:
+            to_little_endian(value, v);
+            std::memcpy(dst, v, 3);
+            return;
+        case SND_PCM_FORMAT_S24_LE:
         case SND_PCM_FORMAT_S32_LE:
             to_little_endian(value, v);
             break;
-        default:
-            assert(false);
-        }
-
-        switch( type ) {
-        case SND_PCM_FORMAT_S20_LE:
-        case SND_PCM_FORMAT_S20_BE:
-        case SND_PCM_FORMAT_S24_LE:
-        case SND_PCM_FORMAT_S24_BE:
-        case SND_PCM_FORMAT_S32_LE:
-        case SND_PCM_FORMAT_S32_BE:
-            std::memcpy(dst, v, 4);
-            break;
-        case SND_PCM_FORMAT_S24_3LE:
-        case SND_PCM_FORMAT_S20_3LE:
-        case SND_PCM_FORMAT_S18_3LE:
-            std::memcpy(dst, v, 3);
-            break;
         case SND_PCM_FORMAT_S24_3BE:
-        case SND_PCM_FORMAT_S20_3BE:
-        case SND_PCM_FORMAT_S18_3BE:
+            to_big_endian(value, v);
             std::memcpy(dst, (v + 1), 3);
+            return;
+        case SND_PCM_FORMAT_S24_BE:
+        case SND_PCM_FORMAT_S32_BE:
+            to_big_endian(value, v);
             break;
         default:
             assert(false);
         }
+        std::memcpy(dst, v, 4);
     }
 
     inline void pcm_buffer::write_f(void* dst, float value, snd_pcm_format_t type)
     {
         switch( type ) {
-        case SND_PCM_FORMAT_FLOAT_BE:
-            to_big_endian(value, dst);
-            break;
         case SND_PCM_FORMAT_FLOAT_LE:
             to_little_endian(value, dst);
+            break;
+        case SND_PCM_FORMAT_FLOAT_BE:
+            to_big_endian(value, dst);
             break;
         default:
             assert(false);
@@ -758,11 +695,11 @@ namespace alsa {
     inline void pcm_buffer::write_d(void* dst, double value, snd_pcm_format_t type)
     {
         switch( type ) {
-        case SND_PCM_FORMAT_FLOAT64_BE:
-            to_big_endian(value, dst);
-            break;
         case SND_PCM_FORMAT_FLOAT64_LE:
             to_little_endian(value, dst);
+            break;
+        case SND_PCM_FORMAT_FLOAT64_BE:
+            to_big_endian(value, dst);
             break;
         default:
             assert(false);
